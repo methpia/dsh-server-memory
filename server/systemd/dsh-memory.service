@@ -1,0 +1,27 @@
+[Unit]
+Description=memoryd — self-hosted memory service for DeepSeek Harness
+Documentation=https://github.com/methpia/dsh-server-memory
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+# %h expands to the user's home directory in a *user* unit.
+ExecStart=/usr/bin/python3 %h/dsh-memory/server/memoryd.py --config %h/.config/dsh-memory/config.json
+WorkingDirectory=%h/dsh-memory
+Restart=always
+RestartSec=3
+
+# Logs go to journald: journalctl --user -u dsh-memory -f
+StandardOutput=journal
+StandardError=journal
+
+# The service only needs its database, its config and the token file.
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=%h/dsh-memory/data
+
+[Install]
+WantedBy=default.target

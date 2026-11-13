@@ -1,0 +1,30 @@
+# Local runtime data (token, SQLite database, probe scripts)
+.runtime/
+*.db
+*.db-wal
+*.db-shm
+
+# Node
+node_modules/
+npm-debug.log*
+pnpm-debug.log*
+.npm/
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+
+# Packaging
+*.tgz
+dist/
+
+# Editors / OS
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# Local screenshots
+shots/
+

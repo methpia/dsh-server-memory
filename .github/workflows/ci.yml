@@ -1,0 +1,80 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  server:
+    name: server (python ${{ matrix.python }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ['3.9', '3.12']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - name: unittest
+        run: python -m unittest discover -s server/tests -v
+
+  plugin:
+    name: plugin (node ${{ matrix.node }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node: ['22', '24']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+      - name: node:test
+        working-directory: plugin
+        # `--experimental-test-isolation=none` keeps the suite in one process;
+        # the tests are pure and share no ports.
+        run: node --test --experimental-test-isolation=none "tests/*.test.js"
+
+  smoke:
+    name: end-to-end smoke
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: start memoryd
+        run: |
+          python - <<'PY'
+          import json, os
+          home = os.path.expanduser("~")
+          os.makedirs(os.path.join(home, ".config", "dsh-memory"), exist_ok=True)
+          with open(os.path.join(home, ".config", "dsh-memory", "config.json"), "w") as handle:
+              json.dump(
+                  {
+                      "token": "ci-token",
+                      "host": "127.0.0.1",
+                      "port": 8788,
+                      "db_path": os.path.join(home, "ci-memory.db"),
+                  },
+                  handle,
+              )
+          with open(os.path.join(home, ".config", "dsh-memory", "token"), "w") as handle:
+              handle.write("ci-token")
+          PY
+          nohup python server/memoryd.py > /tmp/memoryd.log 2>&1 &
+          for _ in $(seq 1 40); do
+            curl -sf http://127.0.0.1:8788/health > /dev/null && break
+            sleep 0.5
+          done
+      - name: smoke
+        run: node scripts/smoke.mjs --url http://127.0.0.1:8788 --token-file ~/.config/dsh-memory/token
+      - name: memoryd log
+        if: failure()
+        run: tail -n 60 /tmp/memoryd.log

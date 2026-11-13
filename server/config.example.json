@@ -1,0 +1,21 @@
+{
+  "token": "replace-with-a-random-token",
+  "host": "127.0.0.1",
+  "port": 8788,
+  "db_path": "~/dsh-memory/data/memory.db",
+  "allow_journal": false,
+  "default_context_items": 20,
+  "default_context_chars": 1500,
+  "min_claim_interval_hours": 24,
+  "ranking": {
+    "bm25": 1.0,
+    "recency": 0.35,
+    "kind": 0.25,
+    "half_life_days": 30,
+    "kind_weights": {
+      "note": 1.0,
+      "manual": 1.2,
+      "journal": 0.4
+    }
+  }
+}

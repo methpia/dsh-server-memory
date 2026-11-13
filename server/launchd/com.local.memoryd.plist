@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  launchd unit for memoryd.
+
+  Install:
+    cp com.local.memoryd.plist ~/Library/LaunchAgents/
+    launchctl load ~/Library/LaunchAgents/com.local.memoryd.plist
+
+  Replace every /Users/you path with your own home directory; launchd
+  does not expand ~ or environment variables in ProgramArguments.
+-->
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.local.memoryd</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/usr/bin/python3</string>
+    <string>/Users/you/dsh-memory/server/memoryd.py</string>
+    <string>--config</string>
+    <string>/Users/you/.config/dsh-memory/config.json</string>
+  </array>
+  <key>RunAtLoad</key>
+  <true/>
+  <key>KeepAlive</key>
+  <true/>
+  <key>WorkingDirectory</key>
+  <string>/Users/you/dsh-memory</string>
+  <key>StandardOutPath</key>
+  <string>/Users/you/Library/Logs/dsh-memory.log</string>
+  <key>StandardErrorPath</key>
+  <string>/Users/you/Library/Logs/dsh-memory.log</string>
+  <key>ProcessType</key>
+  <string>Background</string>
+</dict>
+</plist>

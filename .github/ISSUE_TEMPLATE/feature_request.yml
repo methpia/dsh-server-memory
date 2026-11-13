@@ -1,0 +1,27 @@
+name: Feature request
+description: Suggest a capability or a design change
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem does this solve?
+      description: Describe the situation, not the solution. What are you doing when it hurts?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: Optional. Keep the project's constraints in mind — see below.
+  - type: checkboxes
+    id: constraints
+    attributes:
+      label: Constraints this project will not break
+      description: |
+        These are deliberate design decisions, not budget cuts. A PR that violates them will be asked to change.
+      options:
+        - label: The server stays free of LLM calls.
+        - label: The server stays free of third-party Python dependencies (stdlib only).
+        - label: Nothing writes a whole session transcript into the database.
+        - label: The per-turn prompt budget stays bounded (default 900 chars).

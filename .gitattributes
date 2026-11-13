@@ -1,0 +1,8 @@
+# Normalise line endings across platforms; keep shell scripts LF so they run on macOS/Linux.
+* text=auto eol=lf
+*.sh text eol=lf
+*.plist text eol=lf
+*.png binary
+*.jpg binary
+*.webp binary
+*.db binary

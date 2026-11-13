@@ -1,0 +1,15 @@
+# dsh-server-memory bundle patch.
+#
+# Installs one Host plugin row. Every config field is optional; the values here
+# are the documented defaults except for `tokenFile`, which must point at the
+# file holding the memoryd bearer token on this machine.
+#
+# Recommended: create a token file with mode 600 instead of inlining `token`.
+- insert:
+    - id: dsh-server-memory
+      name: dsh-server-memory
+      config:
+        serverUrl: http://127.0.0.1:8788
+        tokenFile: ~/.config/dsh-memory/token
+        defaultProject: default
+        projectMap: {}

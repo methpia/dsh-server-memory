@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  launchd unit for the daily backup (03:00 local time).
+
+  Install after com.local.memoryd.plist:
+    cp com.local.memoryd.backup.plist ~/Library/LaunchAgents/
+    launchctl load ~/Library/LaunchAgents/com.local.memoryd.backup.plist
+
+  Replace /Users/you with your home directory.
+-->
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.local.memoryd.backup</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/sh</string>
+    <string>/Users/you/dsh-memory/server/scripts/backup.sh</string>
+  </array>
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>MEMORYD_DB</key>
+    <string>/Users/you/dsh-memory/data/memory.db</string>
+    <key>MEMORYD_BACKUP_DIR</key>
+    <string>/Users/you/dsh-memory-backups</string>
+  </dict>
+  <key>StartCalendarInterval</key>
+  <dict>
+    <key>Hour</key>
+    <integer>3</integer>
+    <key>Minute</key>
+    <integer>0</integer>
+  </dict>
+  <key>StandardOutPath</key>
+  <string>/Users/you/Library/Logs/dsh-memory-backup.log</string>
+  <key>StandardErrorPath</key>
+  <string>/Users/you/Library/Logs/dsh-memory-backup.log</string>
+</dict>
+</plist>

@@ -1,0 +1,20 @@
+{
+  "serverUrl": "http://127.0.0.1:8788",
+  "tokenFile": "~/.config/dsh-memory/token",
+  "defaultProject": "default",
+  "projectMap": {
+    "D:\\dev": "dsh"
+  },
+  "indexMaxItems": 6,
+  "indexMaxChars": 900,
+  "searchResults": 8,
+  "searchMaxChars": 4000,
+  "digestMaxChars": 8000,
+  "digestMaxEntries": 120,
+  "maxBacklogDays": 7,
+  "claimIntervalHours": 24,
+  "consolidationEnabled": true,
+  "sessionsRoot": "~/.dsh/sessions",
+  "contextPollMs": 300000,
+  "requestTimeoutMs": 8000
+}

@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Project memory",
+    "description": "Remember long-term decisions, preferences, risks, and lessons per project. The prompt receives only a compact index under 900 characters; full entries are retrieved on demand, and work flow is summarized once a day by a self-hosted service."
+  }
+}

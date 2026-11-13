@@ -1,0 +1,62 @@
+name: Bug report
+description: Something is broken or behaves unexpectedly
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Please do **not** paste memory contents or tokens. Redact paths and identifiers.
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: Output of `git describe --tags` in your checkout, or the tag you installed.
+      placeholder: v0.1.0
+    validations:
+      required: true
+  - type: dropdown
+    id: component
+    attributes:
+      label: Component
+      options:
+        - plugin (DSH host side)
+        - memoryd (server)
+        - scripts / CI
+        - docs
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Environment
+      description: OS, Python version, Node version, DSH version.
+      placeholder: macOS 15.8 · Python 3.9.6 · Node 24.16
+    validations:
+      required: true
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: Include the exact error text. Redact tokens and personal paths.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. python3 memoryd.py --config ...
+        2. memory_search("...")
+        3. ...
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs (optional)
+      description: memoryd log tail, or `journalctl --user -u dsh-memory`.
+      render: shell
