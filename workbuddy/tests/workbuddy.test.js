@@ -67,6 +67,11 @@ function fakeClient(overrides = {}) {
   }
 }
 
+  // A state write can land between our last await and the removal; Node's rm
+  // retries on ENOTEMPTY, which is exactly this race (seen on Linux CI).
+  const cleanup = (directory) =>
+    rm(directory, { recursive: true, force: true, maxRetries: 10, retryDelay: 50 })
+
 async function tempStateFile() {
   const directory = await mkdtemp(join(tmpdir(), 'dshm-wb-'))
   return { directory, file: join(directory, 'state.json') }
@@ -94,7 +99,7 @@ test('the WorkBuddy config prefers env, tolerates a BOM, and keeps defaults', as
     assert.equal(overridden.serverUrl, 'http://127.0.0.1:9999')
     assert.equal(overridden.tokenFile.replace(/\\/g, '/'), '/tmp/token')
   } finally {
-    await rm(directory, { recursive: true, force: true })
+    await cleanup(directory)
   }
 })
 
@@ -331,7 +336,7 @@ test('the MCP server speaks initialize, tools/list and tools/call', async () => 
     })
     assert.equal(toolFailure.result.isError, true)
   } finally {
-    await rm(directory, { recursive: true, force: true })
+    await cleanup(directory)
   }
 })
 
@@ -357,7 +362,7 @@ test('a memory outage becomes a tool error, not a crash', async () => {
     assert.equal(response.result.isError, true)
     assert.ok(response.result.content[0].text.includes('不可达'))
   } finally {
-    await rm(directory, { recursive: true, force: true })
+    await cleanup(directory)
   }
 })
 
@@ -431,7 +436,7 @@ test('collectDigestForProject reads the transcript the hook recorded', async () 
     assert.equal(collected.entries.length, 4)
     assert.deepEqual(collected.warnings, [])
   } finally {
-    await rm(directory, { recursive: true, force: true })
+    await cleanup(directory)
   }
 })
 
@@ -486,7 +491,7 @@ test('memory_consolidate returns a digest and memory_save commits it', async () 
     assert.equal(watermarkCall.args[1].status, 'ok')
     assert.ok(watermarkCall.args[1].lastConsolidated.endsWith('Z'))
   } finally {
-    await rm(directory, { recursive: true, force: true })
+    await cleanup(directory)
   }
 })
 
@@ -508,7 +513,7 @@ test('memory_consolidate reports a recent window without reading transcripts', a
     assert.ok(response.result.content[0].text.includes('无需聚合'))
     assert.ok(response.result.content[0].text.includes('too_soon'))
   } finally {
-    await rm(directory, { recursive: true, force: true })
+    await cleanup(directory)
   }
 })
 
@@ -540,6 +545,6 @@ test('the daily consolidation hint is injected once per session', async () => {
     const second = await runUserPrompt({ ...payload, prompt: '继续' }, { settings: adapterSettings, client })
     assert.equal(second, undefined)
   } finally {
-    await rm(directory, { recursive: true, force: true })
+    await cleanup(directory)
   }
 })
