@@ -1049,7 +1049,7 @@ def load_config(path: Optional[str] = None, overrides: Optional[Dict[str, Any]] 
         if raw is None or raw == "":
             continue
         if key == "port":
-            config[key] = clamp_int(raw, 8788, 1, 65535)
+            config[key] = clamp_int(raw, 8788, 0, 65535)
         elif key == "allow_journal":
             config[key] = raw.strip().lower() in ("1", "true", "yes", "on")
         else:
@@ -1060,7 +1060,7 @@ def load_config(path: Optional[str] = None, overrides: Optional[Dict[str, Any]] 
             if value is not None:
                 config[key] = value
 
-    config["port"] = clamp_int(config.get("port"), 8788, 1, 65535)
+    config["port"] = clamp_int(config.get("port"), 8788, 0, 65535)
     config["db_path"] = os.path.expanduser(str(config.get("db_path") or DEFAULT_CONFIG["db_path"]))
     config["min_claim_interval_hours"] = float(config.get("min_claim_interval_hours") or 24)
     if not isinstance(config.get("ranking"), dict):
