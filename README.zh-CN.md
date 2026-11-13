@@ -204,29 +204,12 @@ node scripts/smoke.mjs --url http://127.0.0.1:8788 --token-file ~/.config/dsh-me
 
 未覆盖：聚合的“模型产出”环节没有在验收环境里跑完整闭环（`consolidate → 模型总结 → save` 的后半段由单测与 HTTP 检验覆盖），真实记忆质量需要跑两周再看；插件市场页面的渲染效果未验证。
 
-## 发布
-
-**GitHub**：把 `package.json` 的 `repository` / `homepage` / `bugs` 里的 `your-name` 换成实际地址，然后：
-
-```bash
-git init && git add . && git commit -m "feat: initial dsh-memory"
-git remote add origin git@github.com:<you>/dsh-memory.git && git push -u origin main
-```
-
-**npm / dsh 插件市场**：插件是 `plugin/` 下的独立包，`files` 已裁剪到运行时文件（19 项、约 25KB）：
-
-```bash
-cd plugin
-npm test            # 88 项 node:test
-npm pack --dry-run  # 确认打包内容只含 index.js/lib/locale/icon/patch
-npm publish --access public
-```
-
-市场审阅需要 `package.json` 的 `dsh.bundle.patch`、`locale/{en,zh}.json` 的 `meta.title/description`、`icon.svg`（三者已就位，图标按 256/64/32px 实渲染检查过）。发布前确认 `version` 递增并更新 [CHANGELOG.md](CHANGELOG.md)。
-
 ## 安全
 
-- 服务端默认只监听 `127.0.0.1`；远程一律走 `tailscale serve`，不要暴露公网。
+- 三种部署方式，按风险从低到高：单机（`127.0.0.1`）→ 内网/Tailscale（`tailscale serve`）→ 公网（**必须**开 HTTPS）。
+  公网部署见 [PUBLIC-DEPLOYMENT.md](docs/PUBLIC-DEPLOYMENT.md)。
+- 公网模式下用 `--tls-cert` / `--tls-key` 让服务自己终止 TLS；也可以放在 nginx/Caddy 后面，但**不要**用明文 HTTP 直接暴露 8788。
+- 只有一个共享 token，没有账号体系、没有速率限制。公网就意味着一台机器持有全部记忆的钥匙——token 泄漏等于全量泄漏，必要时轮换。
 - token 只从配置文件 / token 文件 / 环境变量读取，不写进日志、不写进仓库；`hmac.compare_digest` 常量时间比较。
 - 请求体 ≤1MB、单条文本 ≤4000 字符、单批 ≤50 条，超限在服务端返回 413（不依赖客户端自律）；超限请求体会先排空再响应，避免客户端看到连接重置。
 - `journal` 类型默认拒绝写入：库里只留摘要，原始流水只在聚合时从本地转录临时读取。

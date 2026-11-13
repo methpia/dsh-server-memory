@@ -35,6 +35,7 @@ import os
 import re
 import signal
 import sqlite3
+import ssl
 import sys
 import threading
 from datetime import datetime, timedelta, timezone
@@ -77,6 +78,8 @@ DEFAULT_CONFIG = {
     "default_context_chars": 1500,
     "min_claim_interval_hours": 24,
     "ranking": DEFAULT_RANKING,
+    "tls_cert": "",
+    "tls_key": "",
 }
 
 log = logging.getLogger(SERVICE_NAME)
@@ -717,6 +720,7 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Content-Type", "application/json; charset=utf-8")
         self.send_header("Content-Length", str(len(body)))
         self.send_header("Cache-Control", "no-store")
+        self.send_header("X-Content-Type-Options", "nosniff")
         if self.close_connection:
             # Error replies may leave an unread request body behind; closing the
             # connection keeps the next request from being parsed as leftover bytes.
@@ -1043,6 +1047,8 @@ def load_config(path: Optional[str] = None, overrides: Optional[Dict[str, Any]] 
         "MEMORYD_PORT": "port",
         "MEMORYD_DB": "db_path",
         "MEMORYD_ALLOW_JOURNAL": "allow_journal",
+        "MEMORYD_TLS_CERT": "tls_cert",
+        "MEMORYD_TLS_KEY": "tls_key",
     }
     for env_name, key in env_map.items():
         raw = os.environ.get(env_name)
@@ -1063,6 +1069,10 @@ def load_config(path: Optional[str] = None, overrides: Optional[Dict[str, Any]] 
     config["port"] = clamp_int(config.get("port"), 8788, 0, 65535)
     config["db_path"] = os.path.expanduser(str(config.get("db_path") or DEFAULT_CONFIG["db_path"]))
     config["min_claim_interval_hours"] = float(config.get("min_claim_interval_hours") or 24)
+    config["tls_cert"] = str(config.get("tls_cert") or "").strip()
+    config["tls_key"] = str(config.get("tls_key") or "").strip()
+    if bool(config["tls_cert"]) != bool(config["tls_key"]):
+        raise SystemExit("tls_cert and tls_key must be configured together")
     if not isinstance(config.get("ranking"), dict):
         config["ranking"] = json.loads(json.dumps(DEFAULT_RANKING))
     return config
@@ -1078,6 +1088,8 @@ EXAMPLE_CONFIG = {
     "default_context_chars": 1500,
     "min_claim_interval_hours": 24,
     "ranking": DEFAULT_RANKING,
+    "tls_cert": "",
+    "tls_key": "",
 }
 
 
@@ -1104,7 +1116,15 @@ def write_example_config(path: str) -> str:
 
 def build_server(config: Dict[str, Any]) -> MemoryServer:
     db = Database(config["db_path"])
-    return MemoryServer((config["host"], int(config["port"])), db, config)
+    server = MemoryServer((config["host"], int(config["port"])), db, config)
+    if config.get("tls_cert"):
+        # Public deployments terminate TLS here rather than behind a proxy, so the
+        # token never crosses the wire in clear text.
+        context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+        context.minimum_version = ssl.TLSVersion.TLSv1_2
+        context.load_cert_chain(str(config["tls_cert"]), str(config["tls_key"]))
+        server.socket = context.wrap_socket(server.socket, server_side=True)
+    return server
 
 
 def main(argv: Optional[List[str]] = None) -> int:
@@ -1119,6 +1139,8 @@ def main(argv: Optional[List[str]] = None) -> int:
     parser.add_argument("--token", help="bearer token (prefer the config file)")
     parser.add_argument("--allow-journal", action="store_true", default=None,
                         help="permit kind=journal rows (off by default)")
+    parser.add_argument("--tls-cert", help="PEM certificate; enables HTTPS (requires --tls-key)")
+    parser.add_argument("--tls-key", help="PEM private key for --tls-cert")
     parser.add_argument("--log-level", default="INFO", help="DEBUG, INFO, WARNING, ERROR")
     parser.add_argument("--init-config", action="store_true", help="write a config with a fresh token")
     parser.add_argument("--check", action="store_true", help="open the database and print a summary")
@@ -1145,6 +1167,8 @@ def main(argv: Optional[List[str]] = None) -> int:
             "db_path": args.db,
             "token": args.token,
             "allow_journal": args.allow_journal,
+            "tls_cert": args.tls_cert,
+            "tls_key": args.tls_key,
         },
     )
     # `--check` only opens the database, so it must work before a token exists.
@@ -1169,9 +1193,10 @@ def main(argv: Optional[List[str]] = None) -> int:
 
     server = build_server(config)
     log.info(
-        "%s %d listening on http://%s:%d (db: %s)",
+        "%s %d listening on %s://%s:%d (db: %s)",
         SERVICE_NAME,
         SERVICE_VERSION,
+        "https" if config.get("tls_cert") else "http",
         config["host"],
         int(config["port"]),
         config["db_path"],

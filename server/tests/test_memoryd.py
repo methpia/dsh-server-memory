@@ -451,3 +451,30 @@ class SearchTextTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+class TlsConfigTests(unittest.TestCase):
+    """A public deployment must not start with a half-configured TLS pair."""
+
+    def _blank_config_path(self):
+        return os.path.join(tempfile.mkdtemp(prefix="memoryd-tls-"), "absent.json")
+
+    def test_cert_without_key_is_rejected(self):
+        with self.assertRaises(SystemExit):
+            memoryd.load_config(self._blank_config_path(), {"tls_cert": "/tmp/cert.pem"})
+
+    def test_key_without_cert_is_rejected(self):
+        with self.assertRaises(SystemExit):
+            memoryd.load_config(self._blank_config_path(), {"tls_key": "/tmp/key.pem"})
+
+    def test_pair_is_stored(self):
+        config = memoryd.load_config(
+            self._blank_config_path(),
+            {"tls_cert": "/tmp/cert.pem", "tls_key": "/tmp/key.pem"},
+        )
+        self.assertEqual(config["tls_cert"], "/tmp/cert.pem")
+        self.assertEqual(config["tls_key"], "/tmp/key.pem")
+
+    def test_default_is_plain_http(self):
+        config = memoryd.load_config(self._blank_config_path(), {})
+        self.assertEqual(config["tls_cert"], "")
+        self.assertEqual(config["tls_key"], "")

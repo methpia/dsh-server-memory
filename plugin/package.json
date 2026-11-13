@@ -1,6 +1,6 @@
 {
   "name": "dsh-server-memory",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Project-scoped long-term memory for DeepSeek Harness: a compact prompt index, search/save/forget tools, and a once-a-day consolidation loop backed by a self-hosted memoryd service (Python stdlib, zero dependencies).",
   "type": "module",
   "license": "MIT",

@@ -5,7 +5,7 @@
 Project-scoped long-term memory for [DeepSeek Harness](https://github.com/deepseek-ai) (DSH), self-hosted, with a
 **zero-LLM daily path**.
 
-[中文文档](README.zh-CN.md) · **[User guide](docs/USER-GUIDE.md)** · [Design (EN)](DESIGN.en.md) · [设计文档](DESIGN.md) · [Security](SECURITY.md) · [Contributing](CONTRIBUTING.md)
+[中文文档](README.zh-CN.md) · **[User guide](docs/USER-GUIDE.md)** · **[Public deployment](docs/PUBLIC-DEPLOYMENT.md)** · [Design (EN)](DESIGN.en.md) · [设计文档](DESIGN.md) · [Security](SECURITY.md) · [Contributing](CONTRIBUTING.md)
 
 ---
 
@@ -91,8 +91,11 @@ cp systemd/dsh-memory.service ~/.config/systemd/user/
 systemctl --user daemon-reload && systemctl --user enable --now dsh-memory
 ```
 
-Remote access: keep the service on `127.0.0.1` and put it on your tailnet — **do not** bind `0.0.0.0` and forward the
-port.
+Remote access, two options:
+
+- **Private (recommended):** keep the service on `127.0.0.1` and put it on your tailnet.
+- **Public VPS:** bind `0.0.0.0` **with TLS enabled** (`tls_cert` / `tls_key`), or keep it on loopback behind
+  nginx/Caddy. See [public deployment](docs/PUBLIC-DEPLOYMENT.md) — a plain-HTTP public port is not supported.
 
 ```bash
 tailscale serve --bg --https=8443 http://127.0.0.1:8788
@@ -165,7 +168,9 @@ Text is capped at 4000 characters per item. **Never** submit a whole session tra
 ## Security
 
 The service holds your entire long-term memory and a bearer token. Defaults are conservative: bind `127.0.0.1`,
-fails closed on a missing token, `chmod 600` on the token file. Read [SECURITY.md](SECURITY.md) before exposing it
+fails closed on a missing token, `chmod 600` on the token file. For a public host, enable TLS (`tls_cert`/`tls_key`)
+or terminate it at a proxy — there is exactly one shared token, so HTTP on a public port means anyone on the path can
+read every memory. Read [SECURITY.md](SECURITY.md) before exposing it
 beyond your own machine.
 
 ## Known limitations

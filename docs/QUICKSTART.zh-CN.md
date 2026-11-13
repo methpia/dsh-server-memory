@@ -95,3 +95,24 @@ Windows 放在 `%USERPROFILE%\.config\dsh-memory\token`。
 数据库就是一个文件：`~/dsh-memory/data/memory.db`。停服务 → 复制 → 起服务即可。
 轮换 token 没有 `--force`：把 `config.json` 改名备份后用 `--init-config` 重新生成，
 并同步更新所有客户端的 token 文件。
+## 公网部署（阿里云等 VPS）
+
+三种部署方式，按风险从低到高：单机 → 内网/Tailscale → **公网**。公网必须开 HTTPS，完整步骤见
+[PUBLIC-DEPLOYMENT.md](PUBLIC-DEPLOYMENT.md)（英文），要点：
+
+1. 配置里把 `host` 改成 `0.0.0.0`，并填上 `tls_cert` / `tls_key`（**必须成对**，只填一个会拒绝启动）：
+   ```json
+   {
+     "host": "0.0.0.0",
+     "port": 8788,
+     "tls_cert": "/etc/letsencrypt/live/mem.example.com/fullchain.pem",
+     "tls_key":  "/etc/letsencrypt/live/mem.example.com/privkey.pem"
+   }
+   ```
+2. 用 certbot 申请证书（standalone 挑战需要短暂占用 80 端口），并加续期后重启服务的钩子。
+3. 防火墙/安全组只放行 443；如果放在 nginx/Caddy 后面，则服务留在 `127.0.0.1:8788`，8788 不得对外开放。
+4. 客户端 `serverUrl` 改成 `https://你的域名`，token 文件同步过去。
+5. 内地 VPS + 域名走 80/443 需要备案；不想备案就用境外机器或 Tailscale。
+
+**公网部署没有的东西**：没有账号体系（一个 token 等于全部记忆的钥匙）、没有速率限制、数据库明文落盘。
+这些都需要靠外层（代理、全盘加密、fail2ban）补。

@@ -36,6 +36,8 @@ Environment overrides: `MEMORYD_CONFIG`, `MEMORYD_TOKEN`, `MEMORYD_HOST`,
   "default_context_items": 20,
   "default_context_chars": 1500,
   "min_claim_interval_hours": 24,
+  "tls_cert": "",              // PEM certificate; set together with tls_key to serve HTTPS
+  "tls_key": "",               // PEM private key for tls_cert
   "ranking": {
     "bm25": 1.0,
     "recency": 0.35,
@@ -46,7 +48,9 @@ Environment overrides: `MEMORYD_CONFIG`, `MEMORYD_TOKEN`, `MEMORYD_HOST`,
 }
 ```
 
-- `token` is mandatory. The service refuses to start without it.
+- `token` is mandatory for serving requests. `--check` works without one.
+- `tls_cert` + `tls_key` enable HTTPS in-process (TLS 1.2 minimum). Setting only one is a startup error.
+  For a public deployment see [../docs/PUBLIC-DEPLOYMENT.md](../docs/PUBLIC-DEPLOYMENT.md).
 - `allow_journal` stays `false`: journal rows are raw conversation flow and
   must not be stored (DESIGN.md 2.1).
 - `ranking` constants live in config so retrieval can be tuned without code

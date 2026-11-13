@@ -4,6 +4,31 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project uses
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.0] - 2026-11-13
+
+Public-server deployment, plus onboarding docs.
+
+### Added
+
+- `tls_cert` / `tls_key` config keys (and `--tls-cert` / `--tls-key`, `MEMORYD_TLS_CERT` / `MEMORYD_TLS_KEY`)
+  so the service can terminate TLS itself on a public host. Both are required together; TLS 1.2 minimum.
+- `docs/USER-GUIDE.md` (EN) and `docs/QUICKSTART.zh-CN.md` (ZH): the two-machine setup, token distribution,
+  verification, daily behaviour, maintenance and a troubleshooting table.
+- `docs/PUBLIC-DEPLOYMENT.md`: VPS deployment with certbot, systemd, firewall, a Caddy/nginx alternative,
+  and an explicit list of what public deployment does not give you.
+- `X-Content-Type-Options: nosniff` on every response.
+- Four config tests covering the TLS pair requirement.
+
+### Changed
+
+- `--check` no longer requires a token: it only opens the database.
+- The startup log reports the actual scheme (`http://` or `https://`).
+
+### Fixed
+
+- `port: 0` was clamped to `1`, so the test harness could not ask the OS for an ephemeral port.
+  Binding port 1 without privileges fails on Linux (EACCES); Windows silently allowed it.
+- Removed author-only publishing notes from the Chinese README.
 ## [0.1.0] - 2026-11-13
 
 First working version, matching the design in `DESIGN.md`.
