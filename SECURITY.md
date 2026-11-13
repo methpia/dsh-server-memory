@@ -22,6 +22,16 @@
 3. **不要**把 `.runtime/`、`*.db`、`config.json` 提交进仓库——`.gitignore` 已覆盖，提交前用 `git status` 复查。
 4. 备份目录与数据库目录都不要放同步网盘（iCloud/Dropbox），那等于把记忆复制到第三方。
 
+## 设置页的信任边界
+
+插件新增的设置页（Settings → Built-in plugins → Project memory）满足两条约束：
+
+1. **浏览器永远拿不到 bearer token。** 页面只调用宿主内的 `/api/dsh-server-memory` 路由，由宿主持有 token 去访问
+   `memoryd`；因此即使页面被同源的其它脚本影响，也读不到凭据。
+2. **改配置走宿主的 config editor**，不由插件直接改写 profile 文件；保存后插件重启才生效，避免半生效状态。
+
+项目标签/别名是在服务端存的（`POST /api/projects`），不属于敏感配置；但别名会出现在对话里的项目匹配结果中，
+不要用它们承载任何私密信息。
 ## 轮换 token
 
 ```bash

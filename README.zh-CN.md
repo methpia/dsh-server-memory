@@ -50,17 +50,26 @@ memory-plugin/
 │   ├── config.example.json
 │   ├── launchd/                # 常驻与每日备份的 launchd 单元
 │   ├── scripts/backup.sh       # sqlite3 .backup，保留 14 份
-│   └── tests/test_memoryd.py   # 38 个 unittest（含中文检索、限额、claim）
+│   └── tests/test_memoryd.py   # 47 个 unittest（含中文检索、限额、claim、别名、迁移）
 ├── plugin/                     # 装进 DSH 的 npm 包 `dsh-server-memory`
-│   ├── index.js                # 注入 section + 注册工具
-│   ├── lib/                    # 配置 / 客户端 / 缓存 / 项目识别 / 转录 / 摘要 / 工具
+│   ├── index.js                # 注入 section + 注册工具 + 设置页路由
+│   ├── client.js               # 设置 → 插件 → 项目记忆 页面
+│   ├── lib/                    # 配置 / 客户端 / 缓存 / 项目识别 / 转录 / 摘要 / 工具 / 设置路由
 │   ├── locale/ icon.svg        # 插件市场展示元数据
 │   ├── cordis.patch.yml        # bundle patch（一行 insert）
-│   ├── tests/                  # 88 个 node:test
+│   ├── tests/                  # 98 个 node:test
 │   └── README.md               # 插件配置与工具说明
-├── scripts/smoke.mjs           # 对运行中的服务做 14 项验收（DESIGN.md 12.1）
+├── workbuddy/                  # WorkBuddy 适配（独立目录，不进 npm 包）
+│   ├── mcp-server.mjs          # stdio MCP：search/save/consolidate/forget/projects
+│   ├── hooks/                  # SessionStart + UserPromptSubmit
+│   ├── lib/transcripts.mjs     # WorkBuddy JSONL 转录 → 聚合摘要原料
+│   ├── install.mjs             # 写 ~/.workbuddy 的 mcp.json / settings.json
+│   └── tests/                  # 19 个 node:test
+├── scripts/projects.mjs        # 设置项目标签/别名，按关键词解析项目
+├── docs/WORKBUDDY.md           # WorkBuddy 接入、聚合与关键词解析规则
+├── scripts/smoke.mjs           # 对运行中的服务做 16 项验收（DESIGN.md 12.1）
 ├── docs/STRUCTURE.md           # 模块职责、数据流、扩展点
-├── .github/workflows/ci.yml    # Python 3.9/3.12 + Node 24 + 端到端冒烟
+├── .github/workflows/ci.yml    # Python 3.9/3.12 + Node 22/24 + 端到端冒烟
 ├── DESIGN.md                   # 设计稿（验收标准在第 12 节）
 ├── CHANGELOG.md
 └── LICENSE (MIT)
@@ -126,16 +135,48 @@ printf '%s' '<token>' > ~/.config/dsh-memory/token && chmod 600 ~/.config/dsh-me
 
 装好后：系统提示出现 `## 项目记忆（<项目>）`，工具列表里出现 `memory_search` / `memory_save` / `memory_forget` / `memory_consolidate`。
 
-### 3. 验收
+### 设置界面
+
+装好后在 **设置 → 内置插件 → 项目记忆** 有一个配置页：
+
+- 记忆服务地址、token 文件、默认项目（保存后插件自动重启生效）；
+- 索引条数与字符上限、聚合间隔、是否每天自动聚合；
+- **测试连接**：显示服务是否可用、记忆条数与项目数；
+- **拉取项目**：列出服务端已有项目，可直接改「名称」和「别名（逗号分隔）」并保存，立即生效，无需重启。
+
+页面通过宿主的认证路由读写，token 不会出现在浏览器里。配置保存走宿主 `configEditor`，写到 profile 的 `cordis.patch.yml`。
+
+### 3. WorkBuddy（可选）
+
+WorkBuddy 每次对话都会新建带时间戳的工作目录（`D:\项目成果\2026-06-30-20-54-55`），不能靠目录判断项目。
+改为按**项目名/别名**识别：「车易到」→ `cheyidao`。
 
 ```bash
-# 服务端 38 项（Python 3.9+ 均可）
+# 1. 给项目起名字和别名（存在服务端，DSH 与 WorkBuddy 共用）
+node scripts/projects.mjs set cheyidao --label 车易到 --aliases 车易到,cheyidao,汽修管理
+
+# 2. 先预览、再写入 ~/.workbuddy（会备份 mcp.json / settings.json）
+node workbuddy/install.mjs --url http://192.168.5.5:8788 --token-file ~/.config/dsh-memory/token
+node workbuddy/install.mjs --apply --url http://192.168.5.5:8788 --token-file ~/.config/dsh-memory/token
+```
+
+安装内容：一个 stdio MCP server（`memory_search` / `memory_save` / `memory_consolidate` / `memory_forget` / `memory_projects`），
+以及 `SessionStart` 与 `UserPromptSubmit` 两个钩子。手动说「整理记忆」会走 `memory_consolidate`；索引里到期时钩子每天提示一次。
+默认不动 Hindsight；要一并移除用 `--remove-hindsight`。装完重启 WorkBuddy。完整步骤、验证与限制见 [docs/WORKBUDDY.md](docs/WORKBUDDY.md)。
+
+### 4. 验收
+
+```bash
+# 服务端 47 项（Python 3.9+ 均可）
 python3 -m unittest discover -s server/tests -v
 
-# 插件 88 项（Node 22.15+ / 24）
+# 插件 98 项（Node 22.15+ / 24）
 cd plugin && node --test --experimental-test-isolation=none "tests/*.test.js"
 
-# 对运行中的服务做 14 项端到端检查
+# WorkBuddy 适配 19 项（转录、聚合、MCP 协议）
+cd workbuddy && node --test --experimental-test-isolation=none "tests/*.test.js"
+
+# 对运行中的服务做 16 项端到端检查
 node scripts/smoke.mjs --url http://127.0.0.1:8788 --token-file ~/.config/dsh-memory/token
 ```
 
@@ -190,19 +231,27 @@ node scripts/smoke.mjs --url http://127.0.0.1:8788 --token-file ~/.config/dsh-me
 | DELETE | `/api/items/{id}` | 删除一条 |
 | GET/POST | `/api/watermark` | 读 / 推进水位线（只前进） |
 | POST | `/api/watermark/claim` | 原子占位 `{min_interval_hours}`；`claimed=false` 时 agent 什么都不做 |
-| GET | `/api/projects` | 项目列表与条数 |
+| GET | `/api/projects` | 项目列表（含 label、aliases、条数） |
+| POST | `/api/projects` | 新建项目或设置 label / aliases（schema v2） |
+| GET | `/api/resolve?q=` | 按别名把一句话解析成项目（长别名优先） |
 
 ## 验证状态
 
 交付时实测：
 
-- 服务端 38/38 unittest（含中文 `日结`/`结算` 召回、413 限额、claim 幂等、水位线不回退、错误响应关闭连接）。
-- 插件 88/88 node:test（含逐帧 zstd 解析、转录过滤、摘要预算、prompt 注入防串段、缓存失败保留旧数据）。
-- `scripts/smoke.mjs` 对真实进程 14/14（健康检查、鉴权失败、写入、上下文预算、中文检索、claim、删除）。
+- 服务端 47/47 unittest（含中文 `日结`/`结算` 召回、413 限额、claim 幂等、水位线不回退、别名解析、v1→v2 迁移）。
+- 插件 98/98 node:test（含逐帧 zstd 解析、转录过滤、摘要预算、prompt 注入防串段、缓存失败保留旧数据、设置页路由）。
+- WorkBuddy 适配 19/19 node:test（WorkBuddy JSONL 转录、turn 边界、手动聚合与 `consolidationId` 提交、每日提示）。
+- `scripts/smoke.mjs` 对真实进程 16/16（健康检查、鉴权失败、写入、上下文预算、中文检索、claim、删除、别名解析）。
 - 真实 DSH 转录解析：11 个会话 / 182 条流水 / 990ms，超出预算时正确降级为“只送最早的 N 条”，7 天窗口外的流水被标记跳过。
 - 插件装进 desktop profile 后：系统提示出现 `## 项目记忆（dsh）`，4 个工具注册成功，检索走真实服务返回正文。
+- 设置页真机验证：`设置 → 内置插件 → 项目记忆` 正常渲染；测试连接显示“服务已连接 · 9 条记忆 / 1 个项目”；
+  保存配置写入 profile patch 并触发插件重启；项目别名保存按钮能正确回显服务端错误（Mac mini 仍是 v1 服务端时返回
+  `no such endpoint: POST /api/projects`，升级到 v2 后即可保存）。
+- WorkBuddy 适配对本地 memoryd 实测：MCP `initialize` / `tools/list` / 工具可用；`车易到 结算` 自动落到 `cheyidao`；
+  SessionStart 注入项目目录，UserPromptSubmit 首次命中注入索引、后续对话保持安静。
 
-未覆盖：聚合的“模型产出”环节没有在验收环境里跑完整闭环（`consolidate → 模型总结 → save` 的后半段由单测与 HTTP 检验覆盖），真实记忆质量需要跑两周再看；插件市场页面的渲染效果未验证。
+未覆盖：聚合的“模型产出”环节没有在验收环境里跑完整闭环（`consolidate → 模型总结 → save` 的后半段由单测与 HTTP 检验覆盖），真实记忆质量需要跑两周再看；WorkBuddy 真机联调（安装到 `~/.workbuddy` 并重启）需要你本机执行，我只做了 dry-run。
 
 ## 安全
 

@@ -14,7 +14,8 @@
 python -m unittest discover -s server/tests -v
 
 # 插件（10 个文件）
-cd plugin && node --test --experimental-test-isolation=none "tests/*.test.js"
+cd plugin && node --test --experimental-test-isolation=none "tests/*.test.js"     # 98 checks
+cd workbuddy && node --test --experimental-test-isolation=none "tests/*.test.js"  # 19 checks (adapter)
 ```
 
 > **注意**：`node --test tests/`（不带 `--experimental-test-isolation=none`）会让 Node 为每个文件起子进程，
@@ -25,7 +26,7 @@ cd plugin && node --test --experimental-test-isolation=none "tests/*.test.js"
 ```bash
 python server/memoryd.py --config /tmp/mem-config.json &   # 先在 /tmp 写一份带 token 的配置
 node scripts/smoke.mjs --url http://127.0.0.1:8788 --token-file <token 文件>
-# 期望 14/14 checks passed
+# 期望 16/16 checks passed
 ```
 
 ## 约定

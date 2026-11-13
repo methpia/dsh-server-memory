@@ -11,6 +11,7 @@ from __future__ import annotations
 import json
 import os
 import shutil
+import sqlite3
 import sys
 import tempfile
 import threading
@@ -447,6 +448,123 @@ class SearchTextTests(unittest.TestCase):
         self.assertEqual(memoryd.normalize_tags(["结算", " 结算 ", "Refund"]), "结算,refund")
         self.assertEqual(memoryd.normalize_tags("a, b，c"), "a,b,c")
         self.assertEqual(memoryd.normalize_tags(None), "")
+
+
+class ProjectAliasTests(ServerTestCase):
+    def test_alias_roundtrip_and_resolution(self):
+        status, payload = self.request(
+            "POST",
+            "/api/projects",
+            {
+                "project": "cheyidao",
+                "label": "车易到",
+                "aliases": ["cheyidao", "车易到", "汽修管理"],
+            },
+        )
+        self.assertEqual(status, 200, payload)
+        self.assertEqual(payload["project"]["label"], "车易到")
+        self.assertEqual(payload["project"]["aliases"], ["cheyidao", "车易到", "汽修管理"])
+
+        status, projects = self.request("GET", "/api/projects")
+        entry = next(item for item in projects["projects"] if item["id"] == "cheyidao")
+        self.assertEqual(entry["label"], "车易到")
+        self.assertEqual(sorted(entry["aliases"]), sorted(["cheyidao", "车易到", "汽修管理"]))
+
+        for text in ("车易到 的结算模块要改", "帮我看下 CHEYIDAO 的工单", "汽修管理系统的对账"):
+            status, resolved = self.request(
+                "GET", "/api/resolve?q=" + urllib.parse.quote(text)
+            )
+            self.assertEqual(status, 200, resolved)
+            self.assertEqual(resolved["project"], "cheyidao", text)
+
+        status, unresolved = self.request(
+            "GET", "/api/resolve?q=" + urllib.parse.quote("今天天气怎么样")
+        )
+        self.assertEqual(status, 200)
+        self.assertIsNone(unresolved["project"])
+
+    def test_longer_alias_wins(self):
+        self.request(
+            "POST",
+            "/api/projects",
+            {"project": "car", "label": "car", "aliases": ["车易到"]},
+        )
+        self.request(
+            "POST",
+            "/api/projects",
+            {"project": "car-billing", "label": "car billing", "aliases": ["车易到结算"]},
+        )
+        status, resolved = self.request(
+            "GET", "/api/resolve?q=" + urllib.parse.quote("车易到结算模块")
+        )
+        self.assertEqual(status, 200)
+        self.assertEqual(resolved["project"], "car-billing")
+        self.assertEqual(resolved["matched"], "车易到结算")
+
+    def test_aliases_are_validated(self):
+        status, payload = self.request(
+            "POST",
+            "/api/projects",
+            {"project": "bad", "aliases": ["a" * 40]},
+        )
+        self.assertEqual(status, 400)
+        self.assertEqual(payload["error"]["code"], "invalid-aliases")
+
+        status, payload = self.request(
+            "POST",
+            "/api/projects",
+            {"project": "bad", "aliases": ["a%d" % index for index in range(21)]},
+        )
+        self.assertEqual(status, 400)
+        self.assertEqual(payload["error"]["code"], "invalid-aliases")
+
+    def test_resolve_requires_a_query(self):
+        status, payload = self.request("GET", "/api/resolve?q=")
+        self.assertEqual(status, 400)
+        self.assertEqual(payload["error"]["code"], "invalid-q")
+
+
+class SchemaMigrationTests(unittest.TestCase):
+    def test_a_version_one_database_is_upgraded_in_place(self):
+        directory = tempfile.mkdtemp(prefix="memoryd-migrate-")
+        path = os.path.join(directory, "memory.db")
+        connection = sqlite3.connect(path)
+        connection.executescript(
+            """
+            CREATE TABLE projects (
+              id TEXT PRIMARY KEY,
+              label TEXT NOT NULL DEFAULT '',
+              created_at TEXT NOT NULL,
+              last_seen_at TEXT NOT NULL
+            );
+            CREATE TABLE meta (k TEXT PRIMARY KEY, v TEXT NOT NULL);
+            INSERT INTO meta(k, v) VALUES('schema_version', '1');
+            INSERT INTO projects(id, label, created_at, last_seen_at)
+              VALUES('dsh', 'dsh', '2026-11-13T00:00:00Z', '2026-11-13T00:00:00Z');
+            """
+        )
+        connection.commit()
+        connection.close()
+
+        database = memoryd.Database(path)
+        try:
+            columns = {
+                row["name"]
+                for row in database._conn.execute("PRAGMA table_info(projects)").fetchall()
+            }
+            self.assertIn("aliases", columns)
+            version = database._conn.execute(
+                "SELECT v FROM meta WHERE k='schema_version'"
+            ).fetchone()["v"]
+            self.assertEqual(int(version), memoryd.SCHEMA_VERSION)
+
+            project = database.upsert_project("dsh", None, ["dsh", "记忆插件"])
+            self.assertEqual(project["aliases"], ["dsh", "记忆插件"])
+            resolved = database.resolve_project("看看记忆插件的进度")
+            self.assertEqual(resolved["project"], "dsh")
+        finally:
+            database.close()
+            shutil.rmtree(directory, ignore_errors=True)
 
 
 if __name__ == "__main__":

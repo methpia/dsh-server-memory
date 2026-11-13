@@ -15,6 +15,8 @@
   "claimIntervalHours": 24,
   "consolidationEnabled": true,
   "sessionsRoot": "~/.dsh/sessions",
+  "transcriptMaxBytes": 8388608,
+  "transcriptMaxCharsPerEntry": 1200,
   "contextPollMs": 300000,
   "requestTimeoutMs": 8000
 }

@@ -163,6 +163,54 @@ Windows: put the same content in `%USERPROFILE%\.config\dsh-memory\token`.
 
 `token` / `tokenFile` / `DSH_MEMORY_TOKEN` are checked in that order; a file is safer than inlining it in YAML.
 
+## Step 5b: or configure it from the settings page
+
+Editing YAML is not the only way. The plugin adds a page at **Settings → Built-in plugins → Project memory**:
+
+- service URL, token file, default project;
+- prompt-index row/character budgets, consolidation interval and on/off;
+- **Test connection** (live health and counts) and **Load projects**;
+- inline editing of project labels and aliases (see the next section).
+
+Two behaviours worth knowing:
+
+- **Saving settings** goes through the host's config editor and **restarts the plugin** — the page and tools reload with
+  the new values.
+- **Project edits apply immediately** (they are written to the server, not to the plugin config).
+
+The bearer token never reaches the browser: the page talks to an authenticated host route (`/api/dsh-server-memory`),
+and that route holds the token.
+
+## Addressing a project by name
+
+A project normally comes from the working directory. That fails in agents that create a fresh dated directory for every
+conversation (WorkBuddy does exactly this), and it is inconvenient when you just want to say "车易到" and get its
+memory.
+
+The server therefore stores a **label** and a list of **aliases** per project (schema v2):
+
+```bash
+node scripts/projects.mjs list
+node scripts/projects.mjs set cheyidao --label 车易到 --aliases 车易到,cheyidao,汽修管理
+node scripts/projects.mjs resolve 车易到的结算模块改了什么
+```
+
+Resolution (`GET /api/resolve?q=`) scores the text against labels and aliases: the longest match wins, ties fall back
+to the larger project. The same table drives the settings page and the WorkBuddy adapter, so a name you add anywhere is
+visible everywhere.
+
+## WorkBuddy (optional)
+
+WorkBuddy speaks a different protocol (stdio MCP + two hooks), so it ships as a separate adapter in `workbuddy/` and is
+**not** part of the npm package:
+
+```bash
+node workbuddy/install.mjs --url http://192.168.1.10:8788 --token-file ~/.config/dsh-memory/token          # preview
+node workbuddy/install.mjs --apply --url http://192.168.1.10:8788 --token-file ~/.config/dsh-memory/token   # write
+```
+
+The installer backs up `mcp.json` / `settings.json` first, adds one MCP server and two hooks, and leaves Hindsight
+untouched. Full details: [WORKBUDDY.md](WORKBUDDY.md).
 ## Step 6: verify end to end
 
 In DSH:

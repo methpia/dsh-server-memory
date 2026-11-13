@@ -8,7 +8,8 @@
 ```
 ┌──────────────────────────── plugin/ ────────────────────────────┐
 │ index.js          组装：normalizeConfig → client → cache →      │
-│                   tools + systemPrompt.section                  │
+│                   tools + systemPrompt.section + 设置页路由      │
+│ client.js         设置 → 内置插件 → 项目记忆（React 页面）       │
 │                                                                 │
 │ lib/config.js     配置默认值、裁剪、路径展开（纯函数）           │
 │ lib/token.js      token 解析：token / tokenFile / 环境变量       │
@@ -21,16 +22,27 @@
 │ lib/transcripts.js 转录扫描、消息过滤、代码块截断（可注入 fs）    │
 │ lib/digest.js     装箱、字符预算、摘要指令渲染（纯函数）         │
 │ lib/tools.js      4 个工具：参数校验、聚合批次、水位线推进       │
+│ lib/admin.js      设置页后端：health/projects/save-settings     │
+└─────────────────────────────────────────────────────────────────┘
+┌─────────────────────────── workbuddy/ ──────────────────────────┐
+│ （独立顶层目录，不进 npm 包）                                    │
+│ mcp-server.mjs    stdio MCP：search/save/consolidate/forget/…    │
+│ hooks/            SessionStart 与 UserPromptSubmit 钩子          │
+│ lib/project.mjs   项目解析顺序（显式→文本→会话→cwd→最近→默认）  │
+│ lib/transcripts.mjs WorkBuddy JSONL → 摘要原料                   │
+│ lib/state.mjs     session/cwd → project 的小状态文件             │
+│ install.mjs       改 ~/.workbuddy 的 mcp.json / settings.json    │
 └─────────────────────────────────────────────────────────────────┘
                                │ HTTP
 ┌────────────────────────── server/ ─────────────────────────────┐
-│ memoryd.py   utils（时间/检索文本）→ Database → Handler → CLI   │
+│ memoryd.py   utils（时间/检索文本/别名）→ Database → Handler → CLI│
 │             单文件，按“工具函数 → 存储 → HTTP → 入口”分节        │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
 配套资产：`server/launchd/`（macOS 常驻）、`server/systemd/`（Linux 常驻）、`server/scripts/backup.sh`（每日备份）、
-`scripts/smoke.mjs`（14 项端到端）、`.github/workflows/ci.yml`（Python 3.9/3.12 + Node 22/24 + 端到端）。
+`scripts/smoke.mjs`（16 项端到端）、`scripts/projects.mjs`（设置别名 / 解析项目）、
+`.github/workflows/ci.yml`（Python 3.9/3.12 + Node 22/24 + 端到端）。
 
 原则：
 
@@ -87,7 +99,13 @@ agent 用自己的模型总结
 | 调整检索条数、字段 | `lib/tools.js` 的 `memory_search` + `client.search` |
 | 换/加一个记忆服务端点 | `lib/client.js` 一个方法 + `server/memoryd.py` 的 `_route` |
 | 改项目识别规则 | `lib/project.js`；规则顺序写在文件头注释 |
-| 支持新的转录格式 | `lib/transcripts.js` 的 `readSessionFile` / `extractEntries`，未知格式跳过并记 warning |
+| 设置页字段/动作 | `plugin/client.js`（页面）+ `lib/admin.js`（路由与持久化） |
+| WorkBuddy 项目识别 | `workbuddy/lib/project.mjs`（显式 → 文本 → 会话 → cwd → 最近 → 默认） |
+| 新增/修改项目别名 | 设置页、`POST /api/projects`，或 `scripts/projects.mjs set` |
+| 改 WorkBuddy 注入文案 | `workbuddy/lib/hooks.mjs`（复用 `renderIndex` 预算） |
+| WorkBuddy 聚合规则 | `workbuddy/lib/transcripts.mjs`（turn 边界、提醒过滤）+ `mcp-server.mjs` 的 `callConsolidate` |
+| WorkBuddy 安装/卸载 | `workbuddy/install.mjs`（默认 dry-run，先备份再写） |
+| 支持新的转录格式 | `lib/transcripts.js`（DSH）/ `workbuddy/lib/transcripts.mjs`（WorkBuddy），未知格式跳过并记 warning |
 | 改摘要指令或 few-shot | `lib/digest.js` 的 `buildInstructions` |
 | 改检索排序权重 | `server/config.example.json` 的 `ranking`，代码不用动 |
 | 加数据库字段/表 | `memoryd.py` 的 `SCHEMA_SQL` + `SCHEMA_VERSION` + 迁移分支 |
@@ -105,6 +123,7 @@ agent 用自己的模型总结
 
 ## 5. 扩展方向（按设计非目标，谨慎加入）
 
-- 二期 MCP 包装给 WorkBuddy：包一层 stdio MCP server 转发 `memory_search` / `memory_save`（DESIGN.md 9）；
-- 本地 embedding 召回：会引入模型依赖，与“零 LLM 日常开销”冲突，需要单独评估；
-- 管理页面：`connection.fetch.register` 加一个只读页即可，插件已有缓存与状态可复用。
+- 服务端 embedding 召回：会引入模型依赖，与“零 LLM 日常开销”冲突，需要单独评估；
+- 设置页扩展：`client.js` 里的项目行可以继续加「合并项目 / 删除项目」等动作，后端在 `lib/admin.js` 转发；
+- WorkBuddy 自动聚合：当前是「手动为主 + 每日提示一次」，要完全自动可让 `UserPromptSubmit` 在到期时直接 claim
+  并注入摘要任务，但会多花一次模型总结的 token，需要评估后再开。

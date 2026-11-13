@@ -55,9 +55,12 @@ day in the agent, driven by a per-project watermark.
 
 | Path | What |
 |---|---|
-| `plugin/` | The DSH plugin (ESM, no dependencies) — prompt index, tools, transcript digest |
+| `plugin/` | The DSH plugin (ESM, no dependencies) — prompt index, tools, settings page, transcript digest |
+| `workbuddy/` | WorkBuddy adapter: stdio MCP server (incl. consolidation), two hooks, installer, its own tests |
 | `server/` | `memoryd.py` (Python 3.9 stdlib), launchd/systemd units, backup script, tests |
-| `scripts/smoke.mjs` | 14-check end-to-end test against a running service |
+| `scripts/smoke.mjs` | 16-check end-to-end test against a running service |
+| `scripts/projects.mjs` | Set project labels/aliases, resolve a phrase to a project |
+| `docs/WORKBUDDY.md` | WorkBuddy setup, consolidation and the keyword→project rules |
 | `DESIGN.md` | Full design: data model, API, consolidation protocol, cost model, incidents |
 
 > **This repo is a client + server pair.** The plugin does nothing on its own — it needs a memoryd service you run.
@@ -129,12 +132,37 @@ Override the endpoint in your profile patch (keyed by id):
 
 After a restart you should see `## 项目记忆 (<project>)` in the system prompt and four `memory_*` tools.
 
-### 3. Verify
+**Settings page.** Settings → Built-in plugins → Project memory gives you connection fields (service URL, token file,
+default project), index/consolidation budgets, a connection test, a project list, and inline label/alias editing.
+Saving settings persists through the host config editor (the plugin restarts); project edits apply immediately. The
+bearer token stays on the host and never reaches the browser.
+
+### 3. WorkBuddy (optional)
+
+WorkBuddy creates a fresh dated working directory for every conversation, so a project cannot be inferred from `cwd`.
+Instead, projects are addressed by **name or alias**: `车易到` resolves to the `cheyidao` project.
 
 ```bash
-python3 -m unittest discover -s server/tests -v        # 38 checks, Python 3.9+
-cd plugin && node --test --experimental-test-isolation=none "tests/*.test.js"   # 88 checks, Node 22.15+/24
-node scripts/smoke.mjs --url http://127.0.0.1:8788 --token-file ~/.config/dsh-memory/token   # 14 e2e checks
+# 1. give projects names/aliases (stored on the server)
+node scripts/projects.mjs set cheyidao --label 车易到 --aliases 车易到,cheyidao,汽修管理
+
+# 2. preview and then wire the adapter into ~/.workbuddy
+node workbuddy/install.mjs --url http://192.168.5.5:8788 --token-file ~/.config/dsh-memory/token
+node workbuddy/install.mjs --apply --url http://192.168.5.5:8788 --token-file ~/.config/dsh-memory/token
+```
+
+The installer backs up `mcp.json` / `settings.json`, adds one stdio MCP server and two Claude-style hooks, and leaves
+Hindsight alone unless you pass `--remove-hindsight`. Restart WorkBuddy afterwards. Manual consolidation is the primary
+path (say “整理记忆” → `memory_consolidate`); the prompt hook adds a once-a-day hint when the window is due. Details,
+verification steps and limitations: [docs/WORKBUDDY.md](docs/WORKBUDDY.md).
+
+### 4. Verify
+
+```bash
+python3 -m unittest discover -s server/tests -v        # 47 checks, Python 3.9+
+cd plugin && node --test --experimental-test-isolation=none "tests/*.test.js"      # 98 checks, Node 22.15+/24
+cd workbuddy && node --test --experimental-test-isolation=none "tests/*.test.js"  # 19 checks
+node scripts/smoke.mjs --url http://127.0.0.1:8788 --token-file ~/.config/dsh-memory/token   # 16 e2e checks
 ```
 
 ## How memory is written
@@ -161,7 +189,9 @@ All endpoints except `/health` require `Authorization: Bearer <token>`.
 | DELETE | `/api/items/{id}` | delete one memory |
 | GET/POST | `/api/watermark` | read / advance the watermark |
 | POST | `/api/watermark/claim` | atomic "may I consolidate now?" |
-| GET | `/api/projects` | project list with counts |
+| GET | `/api/projects` | project list with labels, aliases and counts |
+| POST | `/api/projects` | create a project or set its label/aliases |
+| GET | `/api/resolve?q=` | resolve conversation text to a project (aliases) |
 
 Text is capped at 4000 characters per item. **Never** submit a whole session transcript — see `DESIGN.md` §2.1.
 

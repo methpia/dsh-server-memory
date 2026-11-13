@@ -16,6 +16,7 @@
  */
 
 import { ContextCache } from './lib/cache.js'
+import { createAdminRoute } from './lib/admin.js'
 import { MemoryClient } from './lib/client.js'
 import { normalizeConfig } from './lib/config.js'
 import { hostDirectory, projectFromDirectory } from './lib/project.js'
@@ -112,4 +113,12 @@ export function apply(ctx, config) {
     `已连接 ${settings.serverUrl}（项目 ${warmProject}，索引 ≤${settings.indexMaxChars} 字符，` +
       `聚合${settings.consolidationEnabled ? `每 ${settings.claimIntervalHours} 小时` : '已关闭'}）`,
   )
+
+  // Settings page backend: the browser reads/writes through this authenticated
+  // route, so the token never leaves the host.
+  ctx.inject(['connection'], (connectionCtx) => {
+    connectionCtx.connection.fetch.register(
+      createAdminRoute({ ctx, client, settings, config }),
+    )
+  })
 }

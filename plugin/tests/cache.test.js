@@ -40,6 +40,30 @@ test('a successful refresh fills the snapshot', async () => {
   assert.equal(client.calls, 1)
 })
 
+test('the server total survives the cache so the index can report it', async () => {
+  const client = stubClient(async (project) => ({
+    ...snapshotPayload(project, '显示出来的那一条'),
+    total: 9,
+  }))
+  const cache = new ContextCache({ client, settings: settings() })
+  cache.touch('dsh')
+  const snapshot = await cache.refresh('dsh', { force: true })
+  assert.equal(snapshot.items.length, 1)
+  assert.equal(snapshot.total, 9)
+})
+
+test('a response without a total falls back to the displayed row count', async () => {
+  const client = stubClient(async (project) => {
+    const payload = snapshotPayload(project, '一条记忆')
+    delete payload.total
+    return payload
+  })
+  const cache = new ContextCache({ client, settings: settings() })
+  cache.touch('dsh')
+  const snapshot = await cache.refresh('dsh', { force: true })
+  assert.equal(snapshot.total, 1)
+})
+
 test('a failure at startup yields an empty but usable snapshot', async () => {
   const errors = []
   const client = stubClient(async () => {

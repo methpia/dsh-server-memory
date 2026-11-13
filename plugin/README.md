@@ -75,6 +75,24 @@ Project resolution order: longest `projectMap` prefix 鈫?enclosing git reposito
 - Unknown transcript format or oversized file: skipped with a logged warning; other sessions still consolidate.
 - Missing token: one warning at activation, tools report `no-token`.
 
+## Settings page
+
+Settings → Built-in plugins → **Project memory** adds a page with:
+
+- service URL, token file and default project (saved through the host config editor; the plugin restarts);
+- prompt-index row/character budgets, consolidation interval and on/off;
+- **Test connection** (live health + counts) and **Load projects**;
+- inline project label/alias editing — aliases are what let a conversation address a project by name
+  (the server stores them, so DSH and WorkBuddy share the same table).
+
+All reads and writes go through the host's authenticated `/api/dsh-server-memory` route; the bearer token never reaches
+the browser.
+
+## WorkBuddy
+
+WorkBuddy support lives in the repository's top-level `workbuddy/` folder and is **not** part of this npm package. See
+[docs/WORKBUDDY.md](https://github.com/methpia/dsh-server-memory/blob/main/docs/WORKBUDDY.md).
+
 ## Requirements
 
 Node 22.15+ / 24 (the transcript reader uses `zlib.zstdDecompressSync`). No npm dependencies.
@@ -82,7 +100,7 @@ Node 22.15+ / 24 (the transcript reader uses `zlib.zstdDecompressSync`). No npm 
 ## Verify
 
 ```bash
-node --test --experimental-test-isolation=none "tests/*.test.js"   # 88 tests
+node --test --experimental-test-isolation=none "tests/*.test.js"   # 98 tests
 ```
 
 ## License

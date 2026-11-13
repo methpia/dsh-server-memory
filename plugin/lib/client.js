@@ -162,6 +162,32 @@ export class MemoryClient {
   }
 
   /**
+   * Resolve free conversation text to a project id through the server's alias
+   * table (v2 servers). Throws `MemoryError` on an older server or an outage.
+   * @param {string} text
+   * @param {number} [limit]
+   */
+  resolve(text, limit = 3) {
+    return this.request('GET', '/api/resolve', { query: { q: text, limit } })
+  }
+
+  /** Projects with labels, aliases and row counts. */
+  listProjects() {
+    return this.request('GET', '/api/projects')
+  }
+
+  /**
+   * Create a project or update its label/aliases.
+   * @param {string} project
+   * @param {{label?: string, aliases?: string[]}} [options]
+   */
+  upsertProject(project, options = {}) {
+    return this.request('POST', '/api/projects', {
+      body: { project, label: options.label, aliases: options.aliases },
+    })
+  }
+
+  /**
    * @param {string} project
    * @param {Array<{text: string, tags?: string[]}>} notes
    * @param {{source?: string, kind?: string}} [options]

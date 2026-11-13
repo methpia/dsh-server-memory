@@ -71,6 +71,39 @@ Windows 放在 `%USERPROFILE%\.config\dsh-memory\token`。
 在 DSH 里说一句「记住：我用 pnpm」，agent 会调 `memory_save`；
 新开一个会话问「我用什么包管理器？」，系统提示的 `## 项目记忆` 里出现这条就通了。
 
+## 六、图形化配置
+
+**设置 → 内置插件 → 项目记忆** 可以直接改：服务地址、token 文件、默认项目、索引与聚合预算；
+带"测试连接""加载项目"，并且能在表格里直接编辑项目的标签与别名。
+
+- 保存设置走宿主的 config editor，**插件会重启**才生效；
+- 改项目名/别名是直接写服务端，**立即生效**；
+- token 不进浏览器，页面通过宿主的 `/api/dsh-server-memory` 路由代理。
+
+## 七、用项目名唤醒记忆
+
+有些 agent（典型是 WorkBuddy）每次对话都新建一个时间戳目录，按目录推断项目就失效了。
+服务端给每个项目存 `label` + `aliases`：
+
+```bash
+node scripts/projects.mjs list
+node scripts/projects.mjs set cheyidao --label 车易到 --aliases 车易到,cheyidao,汽修管理
+node scripts/projects.mjs resolve 车易到的结算模块改了什么
+```
+
+匹配规则：最长别名优先；长度相同则取记忆条数更多的项目。
+
+## 八、WorkBuddy（可选）
+
+适配器在 `workbuddy/`，不属于 npm 包：
+
+```bash
+node workbuddy/install.mjs --url http://192.168.5.5:8788 --token-file ~/.config/dsh-memory/token          # 预览
+node workbuddy/install.mjs --apply --url http://192.168.5.5:8788 --token-file ~/.config/dsh-memory/token   # 写入
+```
+
+会先备份 `mcp.json` / `settings.json`，只加一个 stdio MCP server 和两个 hook，不动 Hindsight。
+详见 [WORKBUDDY.md](WORKBUDDY.md)。
 ## 日常行为
 
 - **干活时不写记忆**，插件只读，零 LLM 开销。

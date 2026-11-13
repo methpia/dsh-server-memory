@@ -44,6 +44,22 @@ jobs:
         # the tests are pure and share no ports.
         run: node --test --experimental-test-isolation=none "tests/*.test.js"
 
+  workbuddy:
+    name: workbuddy adapter (node ${{ matrix.node }})
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        node: ['22', '24']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+      - name: node:test
+        working-directory: workbuddy
+        run: node --test --experimental-test-isolation=none "tests/*.test.js"
+
   smoke:
     name: end-to-end smoke
     runs-on: ubuntu-24.04

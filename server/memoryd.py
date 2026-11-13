@@ -43,7 +43,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Any, Dict, Iterable, List, Optional, Tuple
 from urllib.parse import parse_qs, urlparse
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 SERVICE_NAME = "memoryd"
 SERVICE_VERSION = 1
 
@@ -190,6 +190,67 @@ def clamp_int(value: Any, fallback: int, minimum: int, maximum: int) -> int:
     return max(minimum, min(maximum, number))
 
 
+MAX_ALIASES = 20
+MAX_ALIAS_CHARS = 32
+
+
+def split_aliases(value: Any) -> List[str]:
+    """Parse the stored comma-separated aliases into a list."""
+    if not isinstance(value, str) or value.strip() == "":
+        return []
+    return [alias.strip() for alias in re.split(r"[,，]", value) if alias.strip()]
+
+
+def join_aliases(value: Any) -> str:
+    """Normalise aliases into a lowercase, de-duplicated, bounded string."""
+    if value is None:
+        return ""
+    if isinstance(value, str):
+        parts = re.split(r"[,，]", value)
+    elif isinstance(value, (list, tuple)):
+        parts = [part for part in value if isinstance(part, str)]
+    else:
+        raise ApiError(400, "invalid-aliases", "aliases must be a string or an array of strings")
+    seen = []
+    for part in parts:
+        alias = part.strip().lower()
+        if alias == "":
+            continue
+        if len(alias) > MAX_ALIAS_CHARS:
+            raise ApiError(
+                400,
+                "invalid-aliases",
+                "each alias must be at most %d characters" % MAX_ALIAS_CHARS,
+            )
+        if alias not in seen:
+            seen.append(alias)
+    if len(seen) > MAX_ALIASES:
+        raise ApiError(400, "invalid-aliases", "at most %d aliases per project" % MAX_ALIASES)
+    return ",".join(seen)
+
+
+def score_project(
+    lowered_text: str, project_id: str, label: str, aliases: List[str]
+) -> Tuple[int, str]:
+    """Score how strongly *text* names one project; longer matches weigh more."""
+    best_score = 0
+    best_alias = ""
+    candidates = [project_id, label] + aliases
+    for candidate in candidates:
+        token = candidate.strip().lower()
+        if len(token) < 2 or token not in lowered_text:
+            continue
+        score = 100 + min(len(token), 40) * 2
+        if token == project_id.lower():
+            score += 2
+        if label != "" and token == label.strip().lower():
+            score += 1
+        if score > best_score:
+            best_score = score
+            best_alias = candidate
+    return best_score, best_alias
+
+
 # ---------------------------------------------------------------------------
 # Errors and validation.
 # ---------------------------------------------------------------------------
@@ -252,6 +313,7 @@ SCHEMA_SQL = """
 CREATE TABLE IF NOT EXISTS projects (
   id           TEXT PRIMARY KEY,
   label        TEXT NOT NULL DEFAULT '',
+  aliases      TEXT NOT NULL DEFAULT '',
   created_at   TEXT NOT NULL,
   last_seen_at TEXT NOT NULL
 );
@@ -329,12 +391,33 @@ class Database(object):
                 self._conn.execute(
                     "INSERT INTO meta(k, v) VALUES('schema_version', ?)", (str(SCHEMA_VERSION),)
                 )
-            elif int(row["v"]) != SCHEMA_VERSION:
-                raise RuntimeError(
-                    "database schema version %s does not match this build (%d)"
-                    % (row["v"], SCHEMA_VERSION)
-                )
+            else:
+                version = int(row["v"])
+                if version < SCHEMA_VERSION:
+                    self._upgrade(version)
+                    self._conn.execute(
+                        "UPDATE meta SET v=? WHERE k='schema_version'", (str(SCHEMA_VERSION),)
+                    )
+                elif version > SCHEMA_VERSION:
+                    raise RuntimeError(
+                        "database schema version %s is newer than this build (%d); upgrade memoryd"
+                        % (row["v"], SCHEMA_VERSION)
+                    )
             self._conn.commit()
+
+    def _upgrade(self, from_version: int) -> None:
+        """Apply the forward-only migrations this build knows about."""
+        if from_version < 2:
+            # v2 added project aliases so a project can be named in conversation
+            # instead of inferred from a working directory.
+            columns = {
+                row["name"]
+                for row in self._conn.execute("PRAGMA table_info(projects)").fetchall()
+            }
+            if "aliases" not in columns:
+                self._conn.execute(
+                    "ALTER TABLE projects ADD COLUMN aliases TEXT NOT NULL DEFAULT ''"
+                )
 
     # -- lifecycle ---------------------------------------------------------
 
@@ -364,6 +447,7 @@ class Database(object):
                 """
                 SELECT p.id AS id,
                        p.label AS label,
+                       p.aliases AS aliases,
                        COUNT(i.id) AS items,
                        MAX(i.created_at) AS last_note_at
                 FROM projects p
@@ -376,11 +460,97 @@ class Database(object):
                 {
                     "id": row["id"],
                     "label": row["label"] or row["id"],
+                    "aliases": split_aliases(row["aliases"]),
                     "items": int(row["items"] or 0),
                     "last_note_at": row["last_note_at"] or "",
                 }
                 for row in rows
             ]
+
+    def upsert_project(
+        self,
+        project: str,
+        label: Optional[str] = None,
+        aliases: Optional[List[str]] = None,
+    ) -> Dict[str, Any]:
+        """Create a project or update its label/aliases.
+
+        Aliases are the conversation-side name of a project ("车易到" -> cheyidao),
+        so they live on the server: DSH, WorkBuddy and any future client share one
+        mapping instead of each carrying its own.
+        """
+        with self._lock:
+            stamp = now_iso()
+            self._conn.execute(
+                "INSERT OR IGNORE INTO projects(id, label, aliases, created_at, last_seen_at) "
+                "VALUES(?,?,?,?,?)",
+                (project, project, "", stamp, stamp),
+            )
+            if label is not None:
+                self._conn.execute(
+                    "UPDATE projects SET label=?, last_seen_at=? WHERE id=?",
+                    (label.strip()[:120] or project, stamp, project),
+                )
+            if aliases is not None:
+                self._conn.execute(
+                    "UPDATE projects SET aliases=?, last_seen_at=? WHERE id=?",
+                    (join_aliases(aliases), stamp, project),
+                )
+            self._conn.commit()
+            row = self._conn.execute(
+                "SELECT id, label, aliases FROM projects WHERE id=?", (project,)
+            ).fetchone()
+            return {
+                "id": row["id"],
+                "label": row["label"] or row["id"],
+                "aliases": split_aliases(row["aliases"]),
+            }
+
+    def resolve_project(self, text: str, limit: int = 3) -> Dict[str, Any]:
+        """Pick the project a piece of conversation is talking about.
+
+        This is what makes a keyword ("车易到") addressable even when the client's
+        working directory is a throwaway session folder. Matching is a plain
+        case-insensitive substring over id/label/aliases; longer aliases win, so
+        "车易到结算" resolves to the more specific alias.
+        """
+        lowered = text.lower()
+        with self._lock:
+            rows = self._conn.execute(
+                """
+                SELECT p.id AS id, p.label AS label, p.aliases AS aliases,
+                       COUNT(i.id) AS items
+                FROM projects p
+                LEFT JOIN items i ON i.project = p.id
+                GROUP BY p.id
+                """
+            ).fetchall()
+
+        scored = []
+        for row in rows:
+            label = row["label"] or row["id"]
+            score, matched = score_project(lowered, row["id"], label, split_aliases(row["aliases"]))
+            if score > 0:
+                scored.append(
+                    {
+                        "project": row["id"],
+                        "label": label,
+                        "matched": matched,
+                        "score": score,
+                        "items": int(row["items"] or 0),
+                    }
+                )
+        scored.sort(key=lambda entry: (-entry["score"], -entry["items"], entry["project"]))
+        candidates = scored[: max(1, min(limit, 10))]
+        best = candidates[0] if candidates else None
+        return {
+            "query": text,
+            "project": best["project"] if best else None,
+            "label": best["label"] if best else None,
+            "matched": best["matched"] if best else None,
+            "score": best["score"] if best else 0,
+            "candidates": candidates,
+        }
 
     def counts(self) -> Tuple[int, int]:
         with self._lock:
@@ -961,6 +1131,28 @@ class Handler(BaseHTTPRequestHandler):
 
         if method == "GET" and path == "/api/projects":
             self._send_json(200, {"projects": db.projects()})
+            return
+
+        if method == "POST" and path == "/api/projects":
+            payload = self._read_json()
+            project = require_project(payload.get("project"))
+            label = payload.get("label")
+            if label is not None and not isinstance(label, str):
+                raise ApiError(400, "invalid-label", "label must be a string")
+            aliases = payload.get("aliases")
+            alias_list = None
+            if aliases is not None:
+                alias_list = split_aliases(join_aliases(aliases))
+            result = db.upsert_project(project, label, alias_list)
+            self._send_json(200, {"ok": True, "project": result})
+            return
+
+        if method == "GET" and path == "/api/resolve":
+            text = self._query_one(query, "q") or ""
+            if text.strip() == "":
+                raise ApiError(400, "invalid-q", "q must be a non-empty string")
+            limit = clamp_int(self._query_one(query, "limit"), 3, 1, 10)
+            self._send_json(200, db.resolve_project(text, limit))
             return
 
         if path.startswith("/api/"):

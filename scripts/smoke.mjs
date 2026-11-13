@@ -2,11 +2,11 @@
 /**
  * Acceptance smoke test for a running memoryd instance.
  *
- * It exercises the checks in DESIGN.md 12.1 (1-4): health, authenticated write,
- * project-scoped context, Chinese retrieval, and the auth failure path. Each run
- * uses a fresh project id (so the claim assertions always start from "never
- * consolidated"), removes the rows it wrote, and leaves only an empty project
- * row behind.
+ * It exercises the checks in DESIGN.md 12.1 (1-4) plus the v2 alias endpoints:
+ * health, authenticated write, project-scoped context, Chinese retrieval, alias
+ * resolution, and the auth failure path. Each run uses a fresh project id (so the
+ * claim assertions always start from "never consolidated"), removes the rows it
+ * wrote, and leaves only an empty project row behind.
  *
  * Usage:
  *   MEMORY_URL=http://127.0.0.1:8788 MEMORY_TOKEN=... node scripts/smoke.mjs
@@ -129,6 +129,21 @@ async function main() {
   })
   check('POST /api/items writes a manual row', manual.status === 200 && Number.isInteger(manual.payload?.id))
   if (Number.isInteger(manual.payload?.id)) ids.push(manual.payload.id)
+
+  // v2: project aliases are what let a conversation name a project instead of
+  // relying on a working directory (WorkBuddy creates a new one per session).
+  const alias = await request('POST', '/api/projects', {
+    token,
+    body: { project: PROJECT, label: '冒烟项目', aliases: ['冒烟项目', 'smoke-alias'] },
+  })
+  check('POST /api/projects stores a label and aliases', alias.status === 200 && alias.payload?.project?.aliases?.length >= 2)
+
+  const resolve = await request('GET', `/api/resolve?q=${encodeURIComponent('帮我看看冒烟项目的结算')}`, { token })
+  check(
+    'GET /api/resolve maps a keyword to the project',
+    resolve.status === 200 && resolve.payload?.project === PROJECT,
+    JSON.stringify(resolve.payload?.project),
+  )
 
   const claim = await request('POST', '/api/watermark/claim', { token, body: { project: PROJECT } })
   check('first claim wins', claim.payload?.claimed === true, JSON.stringify(claim.payload))

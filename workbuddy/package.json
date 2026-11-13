@@ -1,0 +1,11 @@
+{
+  "name": "dsh-server-memory-workbuddy",
+  "version": "0.3.0",
+  "private": true,
+  "type": "module",
+  "description": "WorkBuddy adapter for dsh-server-memory: stdio MCP server, SessionStart/UserPromptSubmit hooks, and an installer for ~/.workbuddy.",
+  "license": "MIT",
+  "scripts": {
+    "test": "node --test --experimental-test-isolation=none \"tests/*.test.js\""
+  }
+}

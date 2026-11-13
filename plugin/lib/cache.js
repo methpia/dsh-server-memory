@@ -22,6 +22,7 @@ import { describeMemoryError } from './client.js'
  * @typedef {object} ContextSnapshot
  * @property {string} project
  * @property {Array<{id: number, kind: string, text: string, tags?: string, created_at: string}>} items
+ * @property {number} total Rows in the project, including the ones not displayed.
  * @property {{last_consolidated?: string, last_run_at?: string, last_status?: string}} watermark
  * @property {{due?: boolean, since?: string|null, reason?: string, next_at?: string|null}} consolidation
  * @property {number} fetchedAt Epoch ms of the last successful fetch (0 = never).
@@ -58,6 +59,7 @@ export class ContextCache {
       this.entries.set(project, {
         project,
         items: [],
+        total: 0,
         watermark: {},
         consolidation: {},
         fetchedAt: 0,
@@ -112,6 +114,7 @@ export class ContextCache {
     const previous = this.entries.get(project) ?? {
       project,
       items: [],
+      total: 0,
       watermark: {},
       consolidation: {},
       fetchedAt: 0,
@@ -121,9 +124,13 @@ export class ContextCache {
         limit: this.settings.indexMaxItems,
         maxChars: 1500,
       })
+      const items = Array.isArray(payload?.items) ? payload.items : []
       const snapshot = {
         project,
-        items: Array.isArray(payload?.items) ? payload.items : [],
+        items,
+        // The server counts the whole project; `items` is already limited to the
+        // index size, so the footer must not report it as the total.
+        total: Number.isFinite(payload?.total) ? payload.total : items.length,
         watermark: payload?.watermark ?? {},
         consolidation: payload?.consolidation ?? {},
         fetchedAt: this.clock(),
