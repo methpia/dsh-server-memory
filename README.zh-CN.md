@@ -1,6 +1,6 @@
 # dsh-server-memory · 自托管项目记忆
 
-[English](README.md) · [设计文档](DESIGN.md) · [Design (EN, 关键节)](DESIGN.en.md) · [安全](SECURITY.md)
+[English](README.md) · **[快速上手](docs/QUICKSTART.zh-CN.md)** · [完整指南](docs/USER-GUIDE.md) · [设计文档](DESIGN.md) · [Design (EN, 关键节)](DESIGN.en.md) · [安全](SECURITY.md)
 
 给 DeepSeek Harness（DSH）用的轻量长期记忆：
 

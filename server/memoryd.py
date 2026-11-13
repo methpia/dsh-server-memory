@@ -1147,7 +1147,8 @@ def main(argv: Optional[List[str]] = None) -> int:
             "allow_journal": args.allow_journal,
         },
     )
-    if not str(config.get("token") or "").strip():
+    # `--check` only opens the database, so it must work before a token exists.
+    if not args.check and not str(config.get("token") or "").strip():
         raise SystemExit(
             "no token configured; run `memoryd.py --init-config` or set MEMORYD_TOKEN"
         )

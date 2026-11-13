@@ -5,7 +5,7 @@
 Project-scoped long-term memory for [DeepSeek Harness](https://github.com/deepseek-ai) (DSH), self-hosted, with a
 **zero-LLM daily path**.
 
-[中文文档](README.zh-CN.md) · [Design (EN)](DESIGN.en.md) · [设计文档](DESIGN.md) · [Security](SECURITY.md) · [Contributing](CONTRIBUTING.md)
+[中文文档](README.zh-CN.md) · **[User guide](docs/USER-GUIDE.md)** · [Design (EN)](DESIGN.en.md) · [设计文档](DESIGN.md) · [Security](SECURITY.md) · [Contributing](CONTRIBUTING.md)
 
 ---
 
@@ -59,6 +59,10 @@ day in the agent, driven by a per-project watermark.
 | `server/` | `memoryd.py` (Python 3.9 stdlib), launchd/systemd units, backup script, tests |
 | `scripts/smoke.mjs` | 14-check end-to-end test against a running service |
 | `DESIGN.md` | Full design: data model, API, consolidation protocol, cost model, incidents |
+
+> **This repo is a client + server pair.** The plugin does nothing on its own — it needs a memoryd service you run.
+> If you are installing this for the first time, follow the [user guide](docs/USER-GUIDE.md) instead of the condensed
+> steps below; it covers the two-machine case, token distribution and the mistakes people actually hit.
 
 ## Quick start
 
