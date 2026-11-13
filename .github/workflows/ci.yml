@@ -7,11 +7,17 @@ on:
 jobs:
   server:
     name: server (python ${{ matrix.python }})
-    runs-on: ubuntu-latest
+    # Pinned deliberately: `ubuntu-latest` moved to 26.04, which no longer ships
+    # Python 3.9 and where socket bind in the test harness fails with EACCES.
+    runs-on: ${{ matrix.runner }}
     strategy:
       fail-fast: false
       matrix:
-        python: ['3.9', '3.12']
+        include:
+          - python: '3.9'
+            runner: ubuntu-22.04
+          - python: '3.12'
+            runner: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -22,7 +28,7 @@ jobs:
 
   plugin:
     name: plugin (node ${{ matrix.node }})
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix:
@@ -40,7 +46,7 @@ jobs:
 
   smoke:
     name: end-to-end smoke
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5

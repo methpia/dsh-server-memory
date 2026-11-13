@@ -16,7 +16,7 @@ const SESSION_HEADER = {
   type: 'session',
   version: 4,
   id: 'session-1',
-  cwd: 'D:\\dev',
+  cwd: '/work/dev',
   createdAt: 1000,
   delegationDepth: 0,
 }
@@ -43,7 +43,7 @@ test('textOfContent keeps only text blocks', () => {
 test('sessionMeta reads the header and tolerates missing fields', () => {
   assert.deepEqual(sessionMeta([{ type: 'other' }, SESSION_HEADER]), {
     id: 'session-1',
-    cwd: 'D:\\dev',
+    cwd: '/work/dev',
     createdAt: 1000,
     delegationDepth: 0,
     version: 4,
@@ -205,7 +205,7 @@ const treeBuilder = (() => {
   register(
     join(root, '--E-other--', 'session-3', 'session.v4.jsonl.zstd'),
     9000,
-    sessionBuffer({ ...SESSION_HEADER, id: 'session-3', cwd: 'E:\\other' }, [
+    sessionBuffer({ ...SESSION_HEADER, id: 'session-3', cwd: '/work/other' }, [
       userMessage(7000, '别的项目的流水'),
     ]),
   )
