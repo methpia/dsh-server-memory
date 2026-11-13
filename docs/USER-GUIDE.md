@@ -78,6 +78,18 @@ systemctl --user enable --now dsh-memory
 journalctl --user -u dsh-memory -f
 ```
 
+**Docker (any OS, including macOS)**
+
+```bash
+cd server/docker
+cp .env.example .env            # BIND_ADDR: 127.0.0.1, a LAN IP, or 0.0.0.0 with TLS
+docker compose up -d --build
+docker compose ps               # wait for "healthy"
+```
+
+The database stays on the host at `~/dsh-memory/data` (bind mount) and the config at `~/.config/dsh-memory`
+(mounted read-only, so the token is never in the image). The base image comes from ghcr, not Docker Hub.
+Details, including how to switch an existing launchd install over: [server/README.md](../server/README.md#docker).
 **Windows:** no unit file is shipped; use Task Scheduler ("At log on", `python memoryd.py`) or NSSM. Keep the console
 open if you are just trying it out.
 

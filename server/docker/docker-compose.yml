@@ -1,0 +1,37 @@
+# memoryd in Docker.
+#
+#   cd server/docker
+#   cp .env.example .env      # set BIND_ADDR (and CONFIG_DIR/DATA_DIR if not defaults)
+#   docker compose up -d --build
+#   docker compose logs -f
+#
+# Data and config stay on the host: the database is a bind mount, the config
+# (which holds the bearer token) is mounted read-only. Nothing secret lives in
+# the image.
+name: dsh-memory
+
+services:
+  memoryd:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    image: dsh-memoryd:0.4.0
+    container_name: dsh-memoryd
+    restart: unless-stopped
+    ports:
+      # Bind a specific interface to keep the service off other networks.
+      - "${BIND_ADDR:-127.0.0.1}:8788:8788"
+    volumes:
+      - "${CONFIG_DIR:-${HOME}/.config/dsh-memory}:/config:ro"
+      - "${DATA_DIR:-${HOME}/dsh-memory/data}:/data"
+    environment:
+      MEMORYD_CONFIG: /config/config.json
+      MEMORYD_HOST: 0.0.0.0
+      MEMORYD_DB: /data/memory.db
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"

@@ -1,0 +1,10 @@
+# Build context is server/; only the service and its tests matter here.
+tests/
+launchd/
+systemd/
+scripts/
+docker/
+__pycache__/
+*.py[cod]
+*.md
+.dockerignore

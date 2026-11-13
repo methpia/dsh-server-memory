@@ -28,3 +28,5 @@ Thumbs.db
 # Local screenshots
 shots/
 
+# Docker compose local overrides (holds BIND_ADDR, may hold paths)
+server/docker/.env

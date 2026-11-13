@@ -70,6 +70,43 @@ tail -f ~/Library/Logs/dsh-memory.log
 `KeepAlive=true` restarts after a crash. To stop:
 `launchctl unload ~/Library/LaunchAgents/com.local.memoryd.plist`.
 
+## Docker
+
+The service is pure stdlib, so the image is just "Python plus one file". The base comes from **ghcr**, because some
+networks cannot reach Docker Hub.
+
+```bash
+cd server/docker
+cp .env.example .env          # set BIND_ADDR (127.0.0.1, a LAN IP, or 0.0.0.0 with TLS)
+docker compose up -d --build
+docker compose logs -f
+curl -s http://127.0.0.1:8788/health
+```
+
+How it is wired:
+
+| Piece | Where it lives | Why |
+|---|---|---|
+| database | host `~/dsh-memory/data` → `/data` | a bind mount, so backups and `--check` still work on the host |
+| config (token!) | host `~/.config/dsh-memory` → `/config` (**read-only**) | the token is never baked into the image |
+| listen address | `0.0.0.0` inside the container | the publish rule (`BIND_ADDR`) decides which interface is exposed |
+| health | `HEALTHCHECK` hitting `/health` | `docker compose ps` shows `healthy` instead of guessing |
+
+`--check` against the containerised database:
+
+```bash
+python3 memoryd.py --check --db ~/dsh-memory/data/memory.db
+```
+
+Switching an existing launchd install:
+
+```bash
+launchctl unload ~/Library/LaunchAgents/com.local.memoryd.plist
+mv ~/Library/LaunchAgents/com.local.memoryd.plist{,.disabled}   # otherwise it returns at next login
+cd server/docker && docker compose up -d --build
+```
+
+Back to launchd: `docker compose down`, then rename the plist back and `launchctl load` it.
 ## Backup
 
 ```bash

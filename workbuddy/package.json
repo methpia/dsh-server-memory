@@ -1,6 +1,6 @@
 {
   "name": "dsh-server-memory-workbuddy",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "private": true,
   "type": "module",
   "description": "WorkBuddy adapter for dsh-server-memory: stdio MCP server, SessionStart/UserPromptSubmit hooks, and an installer for ~/.workbuddy.",

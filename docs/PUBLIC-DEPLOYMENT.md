@@ -46,6 +46,11 @@ Leave `tls_cert` / `tls_key` out and it speaks plain HTTP — only do that behin
 
 `0.0.0.0` is correct here: the firewall, not the bind address, decides who can reach the port.
 
+
+> Prefer containers? server/docker/ ships a compose file that mounts the config read-only and the database as a bind
+> mount; see [server/README.md](../server/README.md#docker). The rest of this page applies unchanged (TLS, firewall,
+> token handling).
+
 ## 3. TLS
 
 ### Option A — built in (simplest)

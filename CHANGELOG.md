@@ -4,6 +4,18 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project uses
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.0] - 2026-11-13
+
+Container deployment.
+
+### Added
+
+- `server/docker/`: a Dockerfile (`ghcr.io/astral-sh/uv:python3.12-bookworm-slim`, because Docker Hub is unreachable on
+  some networks) and a compose file. The database is a bind mount, the config directory — which holds the token — is
+  mounted read-only, and the container listens on `0.0.0.0` inside while the publish rule decides the interface.
+  Includes a `HEALTHCHECK` so `docker compose ps` reports `healthy`.
+- Documentation: a Docker section in `server/README.md`, a Docker option in the user guide, and a pointer from the
+  public-deployment page.
 ## [0.3.0] - 2026-11-13
 
 WorkBuddy support, a settings UI, and project aliases: a project can now be
