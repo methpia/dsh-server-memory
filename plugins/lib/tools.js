@@ -302,6 +302,79 @@ export function createTools(options) {
     )}。`
   }
 
+  const projects = {
+    name: 'memory_projects',
+    description:
+      '列出、创建或重命名记忆库（项目）。用户说“新建一个记忆库/项目叫 X”“把 A 改名为 B”“给 A 加别名 C”“列一下有哪些项目”时调用。' +
+      '创建后用 memory_save / memory_search 的 project 参数即可指向它。',
+    parameters: {
+      type: 'object',
+      properties: {
+        action: {
+          type: 'string',
+          enum: ['list', 'create', 'update', 'resolve'],
+          description: 'list=列出项目；create/update=新建或改名称与别名；resolve=把一段话解析成项目。默认 list。',
+        },
+        project: {
+          type: 'string',
+          description: '项目 id，创建时必填；建议简短英文或拼音，例如 cheyidao。',
+        },
+        label: { type: 'string', description: '显示名称，例如“车易到”。省略时保留原值。' },
+        aliases: {
+          type: 'array',
+          items: { type: 'string' },
+          description: '对话里可以指代它的别名，例如 ["车易到","cheyidao"]。',
+        },
+        query: { type: 'string', description: 'action=resolve 时要解析的文本。' },
+      },
+      additionalProperties: false,
+    },
+    output: stringOutput(),
+    async execute(args) {
+      const action = typeof args?.action === 'string' ? args.action.trim() : 'list'
+      if (action === 'list') {
+        const payload = await client.listProjects()
+        const list = Array.isArray(payload?.projects) ? payload.projects : []
+        if (list.length === 0) {
+          return '还没有任何项目。用 action=create 并提供 project 与 label 即可新建一个。'
+        }
+        const lines = [`共 ${list.length} 个项目`]
+        for (const entry of list) {
+          const aliases =
+            Array.isArray(entry.aliases) && entry.aliases.length > 0
+              ? ` · 别名 ${entry.aliases.join('、')}`
+              : ''
+          lines.push(`- ${entry.id}（${entry.label ?? entry.id}）${aliases} · ${entry.items ?? 0} 条`)
+        }
+        return lines.join('\n')
+      }
+      if (action === 'resolve') {
+        const query = typeof args?.query === 'string' ? args.query.trim() : ''
+        if (query === '') throw new MemoryError('resolve 需要 query', { code: 'invalid-query' })
+        const hit = await client.resolve(query)
+        if (!hit || typeof hit.project !== 'string' || hit.project === '') {
+          return `没有项目匹配「${query}」。`
+        }
+        return `「${query}」→ ${hit.project}（${hit.label ?? hit.project}），匹配词「${hit.matched ?? ''}」。`
+      }
+      if (action !== 'create' && action !== 'update') {
+        throw new MemoryError(`未知 action：${action}`, { code: 'unknown-action' })
+      }
+      const project = typeof args?.project === 'string' ? args.project.trim() : ''
+      if (project === '') throw new MemoryError('创建或更新项目需要 project', { code: 'invalid-project' })
+      const options = {}
+      if (typeof args?.label === 'string' && args.label.trim() !== '') options.label = args.label.trim()
+      if (Array.isArray(args?.aliases)) {
+        options.aliases = args.aliases.filter((alias) => typeof alias === 'string' && alias.trim() !== '')
+      }
+      const payload = await client.upsertProject(project, options)
+      const saved = payload?.project ?? { id: project, label: options.label ?? project, aliases: options.aliases ?? [] }
+      const aliasText =
+        Array.isArray(saved.aliases) && saved.aliases.length > 0 ? `，别名 ${saved.aliases.join('、')}` : ''
+      return `${action === 'create' ? '已创建' : '已更新'}项目 ${saved.id}（${saved.label ?? saved.id}）${aliasText}。`
+    },
+  }
+
   const forget = {
     name: 'memory_forget',
     description: '按 id 删除一条记忆。id 来自 memory_search 的结果；仅在用户要求删除时调用。',
@@ -399,5 +472,5 @@ export function createTools(options) {
     },
   }
 
-  return [search, save, forget, consolidate]
+  return [search, save, projects, forget, consolidate]
 }

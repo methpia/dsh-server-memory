@@ -199,7 +199,13 @@ A project normally comes from the working directory. That fails in agents that c
 conversation (WorkBuddy does exactly this), and it is inconvenient when you just want to say "车易到" and get its
 memory.
 
-The server therefore stores a **label** and a list of **aliases** per project (schema v2):
+A project can be created from either side:
+
+- **Settings page** → Projects and aliases → fill in the id, label and aliases, then **Create**;
+- **in a conversation**, ask the agent: “新建一个记忆库，id 用 newlib，名字叫新记忆库，别名 新库、newlib”
+  (`memory_projects` with `action=create`).
+
+The server then stores a **label** and a list of **aliases** per project (schema v2):
 
 ```bash
 node scripts/projects.mjs list

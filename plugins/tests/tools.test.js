@@ -60,7 +60,7 @@ test('every tool is registered with a schema and one result renderer', () => {
   const { tools } = build()
   assert.deepEqual(
     tools.map((tool) => tool.name),
-    ['memory_search', 'memory_save', 'memory_forget', 'memory_consolidate'],
+    ['memory_search', 'memory_save', 'memory_projects', 'memory_forget', 'memory_consolidate'],
   )
   for (const tool of tools) {
     assert.equal(tool.parameters.type, 'object')
@@ -277,4 +277,50 @@ test('an unknown project is a tool error, not a silent fallback', async () => {
     (error) => error instanceof MemoryError && /找不到项目或别名/.test(error.message),
   )
   assert.equal(client.calls.some((entry) => entry.name === 'search'), false)
+})
+
+test('memory_projects lists projects with labels, aliases and counts', async () => {
+  const client = stubClient()
+  client.listProjects = async () => ({
+    projects: [{ id: 'cheyidao', label: '车易到', aliases: ['车易到', 'cheyidao'], items: 4 }],
+  })
+  const { byName } = build({ client })
+  const text = await byName.get('memory_projects').execute({ action: 'list' }, AGENT)
+  assert.match(text, /cheyidao/)
+  assert.match(text, /车易到/)
+  assert.match(text, /4 条/)
+})
+
+test('memory_projects creates a library with a label and aliases', async () => {
+  const client = stubClient()
+  client.upsertProject = async (project, options) => ({
+    project: { id: project, label: options.label, aliases: options.aliases },
+  })
+  const { byName } = build({ client })
+  const rendered = await byName.get('memory_projects').execute(
+    { action: 'create', project: 'newlib', label: '新库', aliases: ['新库', 'newlib'] },
+    AGENT,
+  )
+  assert.match(rendered, /已创建项目 newlib/)
+  assert.match(rendered, /新库/)
+})
+
+test('memory_projects rejects a create without a project id', async () => {
+  const { byName } = build()
+  await assert.rejects(
+    () => byName.get('memory_projects').execute({ action: 'create', label: '无 id' }, AGENT),
+    /需要 project/,
+  )
+})
+
+test('memory_projects resolves a phrase to a project', async () => {
+  const client = stubClient()
+  client.resolve = async () => ({ project: 'cheyidao', label: '车易到', matched: '车易到' })
+  const { byName } = build({ client })
+  const rendered = await byName.get('memory_projects').execute(
+    { action: 'resolve', query: '车易到 结算' },
+    AGENT,
+  )
+  assert.match(rendered, /cheyidao/)
+  assert.match(rendered, /车易到/)
 })

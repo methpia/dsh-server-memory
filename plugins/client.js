@@ -66,6 +66,13 @@ window.__ModuleLoader__.load({
       tokenSet: '已配置 token',
       tokenUnset: '尚未配置 token',
       keywordHint: '别名建议 2–6 个高辨识度词，避免「结算」这类通用词。',
+      newProject: '新建项目',
+      newProjectId: '项目 id（建议英文或拼音）',
+      newProjectHint: '新建后就能在对话里用名称或别名指代它；id 建好后不建议再改。',
+      createProject: '创建',
+      creatingProject: '创建中…',
+      createdRow: '已创建',
+      projectIdRequired: '项目 id 不能为空',
     }
     const en = {
       tab: 'Project memory',
@@ -109,6 +116,13 @@ window.__ModuleLoader__.load({
       tokenSet: 'A token is configured',
       tokenUnset: 'No token configured',
       keywordHint: 'Prefer 2–6 distinctive aliases; avoid generic words like “billing”.',
+      newProject: 'New project',
+      newProjectId: 'Project id (English or pinyin)',
+      newProjectHint: 'Once created you can address it by label or alias in a conversation; the id is best left unchanged.',
+      createProject: 'Create',
+      creatingProject: 'Creating…',
+      createdRow: 'Created',
+      projectIdRequired: 'A project id is required',
     }
 
     const CSS = `
@@ -143,6 +157,7 @@ window.__ModuleLoader__.load({
 .dsm-alert{margin:10px 0 0;padding:8px 10px;border-radius:var(--dsw-radius-md,8px);border:0.5px solid var(--dsw-alias-state-error-primary);color:var(--dsw-alias-state-error-primary);font-size:12px;line-height:18px}
 .dsm-notice{margin:10px 0 0;padding:8px 10px;border-radius:var(--dsw-radius-md,8px);border:0.5px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-2);color:var(--dsw-alias-label-secondary);font-size:12px;line-height:18px}
 .dsm-projectList{display:flex;flex-direction:column;gap:10px;margin-top:12px}
+.dsm-create{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr) minmax(0,1.3fr) auto;gap:10px;align-items:end;margin-top:14px;padding-bottom:14px;border-bottom:1px solid rgba(128,128,128,.22)}
 .dsm-project{display:grid;grid-template-columns:130px minmax(0,1fr) minmax(0,1.3fr) auto;gap:10px;align-items:end;padding-top:10px;border-top:0.5px solid var(--dsw-alias-border-l1)}
 .dsm-project:first-child{border-top:0;padding-top:0}
 .dsm-projectId{font-family:var(--dsw-font-mono,ui-monospace,SFMono-Regular,Menlo,monospace);font-size:13px;padding-bottom:7px;color:var(--dsw-alias-label-primary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -214,6 +229,9 @@ window.__ModuleLoader__.load({
       const [projects, setProjects] = useState([])
       const [projectsState, setProjectsState] = useState('idle')
       const [projectsError, setProjectsError] = useState('')
+      const [newProject, setNewProject] = useState({ id: '', label: '', aliases: '' })
+      const [createStatus, setCreateStatus] = useState({ text: '', error: false })
+      const [creating, setCreating] = useState(false)
       const [drafts, setDrafts] = useState({})
       const [rowStatus, setRowStatus] = useState({})
       const mounted = useRef(true)
@@ -359,6 +377,43 @@ window.__ModuleLoader__.load({
         }
       }
 
+      const createProject = async () => {
+        const id = newProject.id.trim()
+        if (id === '') {
+          setCreateStatus({ text: t('projectIdRequired'), error: true })
+          return
+        }
+        setCreating(true)
+        setCreateStatus({ text: '', error: false })
+        try {
+          const data = await api({
+            action: 'save-project',
+            project: id,
+            label: newProject.label.trim() || undefined,
+            aliases: splitAliases(newProject.aliases),
+          })
+          if (!mounted.current) return
+          if (data.ok !== true) throw new Error(data.error ?? t('unavailable'))
+          const saved = data.project ?? {
+            id,
+            label: newProject.label.trim() || id,
+            aliases: splitAliases(newProject.aliases),
+          }
+          setProjects((current) => {
+            const exists = current.some((entry) => entry.id === saved.id)
+            return exists
+              ? current.map((entry) => (entry.id === saved.id ? { ...entry, ...saved } : entry))
+              : [...current, { ...saved, items: 0 }]
+          })
+          setNewProject({ id: '', label: '', aliases: '' })
+          setCreateStatus({ text: t('createdRow'), error: false })
+        } catch (error) {
+          if (mounted.current) setCreateStatus({ text: error.message, error: true })
+        } finally {
+          if (mounted.current) setCreating(false)
+        }
+      }
+
       const state = connection.state
       const statusText =
         state === 'checking' ? t('statusChecking')
@@ -448,6 +503,56 @@ window.__ModuleLoader__.load({
                 h('span', { className: 'dsm-cardHint' }, t('keywordHint')),
               ),
               h('p', { className: 'dsm-cardHint' }, t('projectsHint')),
+              h('div', { className: 'dsm-create' },
+                h('label', { className: 'dsm-field', htmlFor: 'dsm-new-id' },
+                  h('span', { className: 'dsm-label' }, t('newProjectId')),
+                  h('input', {
+                    id: 'dsm-new-id',
+                    className: 'dsm-input',
+                    value: newProject.id,
+                    autoComplete: 'off',
+                    spellCheck: false,
+                    onChange: (event) => setNewProject((current) => ({ ...current, id: event.target.value })),
+                  }),
+                ),
+                h('label', { className: 'dsm-field', htmlFor: 'dsm-new-label' },
+                  h('span', { className: 'dsm-label' }, t('label')),
+                  h('input', {
+                    id: 'dsm-new-label',
+                    className: 'dsm-input',
+                    value: newProject.label,
+                    autoComplete: 'off',
+                    spellCheck: false,
+                    onChange: (event) => setNewProject((current) => ({ ...current, label: event.target.value })),
+                  }),
+                ),
+                h('label', { className: 'dsm-field', htmlFor: 'dsm-new-aliases' },
+                  h('span', { className: 'dsm-label' }, t('aliases')),
+                  h('input', {
+                    id: 'dsm-new-aliases',
+                    className: 'dsm-input',
+                    value: newProject.aliases,
+                    placeholder: '车易到, cheyidao',
+                    autoComplete: 'off',
+                    spellCheck: false,
+                    onChange: (event) => setNewProject((current) => ({ ...current, aliases: event.target.value })),
+                  }),
+                ),
+                h('button', {
+                  type: 'button',
+                  className: 'dsm-btn',
+                  'data-variant': 'primary',
+                  onClick: () => void createProject(),
+                  disabled: creating,
+                }, creating ? t('creatingProject') : t('createProject')),
+              ),
+              h('p', { className: 'dsm-cardHint' }, t('newProjectHint')),
+              createStatus.text !== ''
+                ? h('p', {
+                    className: createStatus.error ? 'dsm-alert' : 'dsm-notice',
+                    role: 'status',
+                  }, createStatus.text)
+                : null,
               projectsError !== '' ? h('p', { className: 'dsm-alert', role: 'alert' }, projectsError) : null,
               projectsState === 'loading' ? h('div', { className: 'dsm-empty' }, '…') : null,
               projectsState !== 'loading' && projects.length === 0 && projectsError === ''

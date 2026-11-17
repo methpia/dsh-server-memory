@@ -5,7 +5,7 @@ Project-scoped long-term memory for DeepSeek Harness.
 The plugin talks to a self-hosted [`memoryd`](../server/memoryd.py) service 鈥?a single-file Python 3.9 stdlib server 鈥?and contributes:
 
 - a **compact memory index** in the system prompt (hard-capped at 900 characters by default), filled by a background cache so prompt assembly never waits on the network;
-- four tools: `memory_search`, `memory_save`, `memory_forget`, `memory_consolidate`;
+- five tools: `memory_search`, `memory_save`, `memory_projects`, `memory_forget`, `memory_consolidate`;
 - a **once-a-day consolidation hand-off**: the plugin reads local DSH transcripts and returns a bounded digest, the agent's own model summarises it, and the plugin writes the result back and advances the watermark.
 
 It keeps no local database, so every client that talks to the same service sees the same memory.
@@ -63,6 +63,7 @@ Project resolution order: longest `projectMap` prefix 鈫?enclosing git reposito
 |---|---|
 | `memory_search` | search this project's memory bodies when the index is not enough |
 | `memory_save` | write only when the user asked to remember; also commits consolidation batches |
+| `memory_projects` | list, create or rename projects and set their aliases |
 | `memory_forget` | delete one memory by id |
 | `memory_consolidate` | check the daily window; returns a digest and a `consolidationId` |
 
@@ -82,6 +83,8 @@ Settings → Built-in plugins → **Project memory** adds a page with:
 - service URL, token file and default project (saved through the host config editor; the plugin restarts);
 - prompt-index row/character budgets, consolidation interval and on/off;
 - **Test connection** (live health + counts) and **Load projects**;
+- a **new project** row (id, label, aliases) that creates a library immediately — the same call the
+  `memory_projects` tool makes;
 - inline project label/alias editing — aliases are what let a conversation address a project by name
   (the server stores them, so DSH and WorkBuddy share the same table).
 

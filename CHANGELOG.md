@@ -4,6 +4,23 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project uses
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.0] - 2026-11-17
+
+Projects can now be created from DSH, not only from WorkBuddy.
+
+### Added
+
+- **`memory_projects` tool** (`list` / `create` / `update` / `resolve`): create a memory library, rename it,
+  set aliases, or list what exists. A conversation can therefore be told “新建一个记忆库叫 X”; once created,
+  `memory_save` and `memory_search` accept the new id or any alias through their `project` argument.
+- **Settings page: a new-project row** (id, label, aliases, Create). It calls the same
+  `POST /api/projects` upsert as the tool, so both paths converge on one table.
+
+### Changed
+
+- Plugin tests: 101 → 106 (tool create/list/resolve, admin create-through-the-route).
+- Docs: user guide explains the two ways to create a project; tool tables list `memory_projects`.
+
 ## [0.5.0] - 2026-11-17
 
 Marketplace readiness, and projects addressable by name from DSH too.

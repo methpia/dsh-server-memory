@@ -18,8 +18,8 @@
 │  dsh-server-memory 插件（ESM，零 npm 依赖）                   │
 │   ├─ systemPrompt.section：注入 ≤900 字符记忆索引      │
 │   ├─ 后台缓存：每 5 分钟拉一次 /api/context           │
-│   ├─ tools：memory_search / save / forget /           │
-│   │         consolidate                               │
+│   ├─ tools：memory_search / save /                    │
+│   │         projects / forget / consolidate          │
 │   └─ 读本地会话转录 → 生成聚合摘要任务                 │
 └───────────────────┬───────────────────────────────────┘
                     │ HTTP + Bearer token
@@ -134,7 +134,7 @@ printf '%s' '<token>' > ~/.config/dsh-memory/token && chmod 600 ~/.config/dsh-me
         projectMap: {}
 ```
 
-装好后：系统提示出现 `## 项目记忆（<项目>）`，工具列表里出现 `memory_search` / `memory_save` / `memory_forget` / `memory_consolidate`。
+装好后：系统提示出现 `## 项目记忆（<项目>）`，工具列表里出现 `memory_search` / `memory_save` / `memory_projects` / `memory_forget` / `memory_consolidate`。
 
 ### 设置界面
 
@@ -211,6 +211,7 @@ node scripts/smoke.mjs --url http://127.0.0.1:8788 --token-file ~/.config/dsh-me
 |---|---|---|
 | `memory_search` | 检索本项目记忆正文，返回 1–8 条 | 索引不够、需要历史决策细节时 |
 | `memory_save` | 写入记忆；`text` 单条 manual，`notes[]` 批量，带 `consolidationId` 则推进水位线 | **仅用户说“记住”时**；或提交聚合结果 |
+| `memory_projects` | 列出 / 新建 / 改名记忆库（项目），配置别名 | 用户说「新建一个记忆库叫 X」「把 A 改名 B」时 |
 | `memory_forget` | 按 id 删除 | 用户要求删除时 |
 | `memory_consolidate` | 检查聚合是否到期；到期返回待总结流水 `consolidationId` | 系统提示提示“记忆聚合已到期”或用户要求整理时 |
 

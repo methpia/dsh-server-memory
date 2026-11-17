@@ -35,8 +35,8 @@ cost, use a full-blown backend instead — this one is for people who want memor
 │  dsh-server-memory plugin (ESM, zero npm deps)     │
 │   ├─ systemPrompt.section: ≤900-char index  │
 │   ├─ background cache: poll /api/context    │
-│   ├─ tools: memory_search / save / forget / │
-│   │         consolidate                     │
+│   ├─ tools: memory_search / save /          │
+│   │         projects / forget / consolidate │
 │   └─ reads local transcripts → digest       │
 └──────────────────┬──────────────────────────┘
                    │ HTTP + bearer token

@@ -168,6 +168,22 @@ test('a service outage is reported to the page instead of throwing', async () =>
   assert.ok(payload.error.includes('ECONNREFUSED'))
 })
 
+test('save-project creates a new project through the service', async () => {
+  const client = fakeClient()
+  const route = createAdminRoute({ ctx: context({}), client, settings: settings() })
+  const response = await request(route, {
+    action: 'save-project',
+    project: 'newlib',
+    label: '新库',
+    aliases: ['新库', 'newlib'],
+  })
+  const body = await response.json()
+  assert.equal(response.status, 200)
+  assert.equal(body.ok, true)
+  assert.deepEqual(body.project, { id: 'newlib', label: '新库', aliases: ['新库', 'newlib'] })
+  assert.equal(client.calls.find((call) => call.name === 'upsertProject').args[0], 'newlib')
+})
+
 test('unknown actions are rejected', async () => {
   const route = createAdminRoute({ ctx: context({}), client: fakeClient(), settings: settings(), config: {} })
   const response = await request(route, { action: 'nope' })
