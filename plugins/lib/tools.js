@@ -73,8 +73,35 @@ export function createTools(options) {
   /** @type {Map<string, {project: string, consumedUntil: string, expiresAt: number}>} */
   const pending = new Map()
 
+  /** Shared by every tool: an explicit project id or alias beats the working directory. */
+  const PROJECT_PARAM = {
+    type: 'string',
+    description:
+      '项目 id 或别名/标签（例如“车易到”）；省略时用当前工作目录对应的项目。要查别的项目、或在对话里点名一个项目时使用。',
+  }
+
   function projectOf(exec) {
     return resolveProject(exec?.agent)
+  }
+
+  async function projectFor(args, exec) {
+    const requested = typeof args?.project === 'string' ? args.project.trim() : ''
+    if (requested === '') return projectOf(exec)
+    let known = []
+    try {
+      const listing = await client.listProjects()
+      known = Array.isArray(listing?.projects) ? listing.projects : []
+    } catch {
+      known = []
+    }
+    if (known.some((project) => project.id === requested)) return requested
+    try {
+      const hit = await client.resolve(requested)
+      if (hit && typeof hit.project === 'string' && hit.project !== '') return hit.project
+    } catch {
+      // fall through to the error below
+    }
+    throw new MemoryError(`找不到项目或别名「${requested}」`, { code: 'unknown-project' })
   }
 
   async function defaultCollectDigest(input) {
@@ -99,6 +126,7 @@ export function createTools(options) {
     parameters: {
       type: 'object',
       properties: {
+        project: PROJECT_PARAM,
         query: {
           type: 'string',
           description: '检索词：模块名、功能名、人名或短语。中文按词召回，无需自行分词。',
@@ -110,7 +138,7 @@ export function createTools(options) {
     },
     output: stringOutput(),
     async execute(args, exec) {
-      const project = projectOf(exec)
+      const project = await projectFor(args, exec)
       const query = typeof args?.query === 'string' ? args.query.trim() : ''
       if (query === '') throw new MemoryError('query 不能为空', { code: 'invalid-query' })
       const limit = clampInt(args?.limit, settings.searchResults, 1, 20)
@@ -144,6 +172,7 @@ export function createTools(options) {
     parameters: {
       type: 'object',
       properties: {
+        project: PROJECT_PARAM,
         text: {
           type: 'string',
           description: '单条手工记忆（kind=manual），不超过 4000 字符；与 notes 二选一。',
@@ -180,7 +209,7 @@ export function createTools(options) {
     },
     output: stringOutput(),
     async execute(args, exec) {
-      const project = projectOf(exec)
+      const project = await projectFor(args, exec)
       const notes = normalizeNotes(args)
       const consolidationId =
         typeof args?.consolidationId === 'string' ? args.consolidationId.trim() : ''
@@ -279,6 +308,7 @@ export function createTools(options) {
     parameters: {
       type: 'object',
       properties: {
+        project: PROJECT_PARAM,
         id: { type: 'integer', minimum: 1, description: '要删除的记忆 id。' },
       },
       required: ['id'],
@@ -286,7 +316,7 @@ export function createTools(options) {
     },
     output: stringOutput(),
     async execute(args, exec) {
-      const project = projectOf(exec)
+      const project = await projectFor(args, exec)
       const id = Number(args?.id)
       if (!Number.isInteger(id) || id <= 0) {
         throw new MemoryError('id 必须是正整数', { code: 'invalid-id' })
@@ -301,11 +331,11 @@ export function createTools(options) {
     name: 'memory_consolidate',
     description:
       '检查本项目的记忆聚合是否到期。到期时返回一段待总结的工作流水和提交方式；未到期时说明原因。' +
-      '系统提示提示“记忆聚合已到期”或用户要求整理记忆时调用，无参数。',
-    parameters: { type: 'object', properties: {}, additionalProperties: false },
+      '系统提示提示“记忆聚合已到期”或用户要求整理记忆时调用，project 可选，用于整理别的项目。',
+    parameters: { type: 'object', properties: { project: PROJECT_PARAM }, additionalProperties: false },
     output: stringOutput(),
-    async execute(_args, exec) {
-      const project = projectOf(exec)
+    async execute(args, exec) {
+      const project = await projectFor(args, exec)
       if (!settings.consolidationEnabled) {
         return '记忆聚合已在插件配置中关闭（consolidationEnabled=false）。'
       }

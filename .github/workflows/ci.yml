@@ -39,7 +39,7 @@ jobs:
         with:
           node-version: ${{ matrix.node }}
       - name: node:test
-        working-directory: plugin
+        working-directory: plugins
         # `--experimental-test-isolation=none` keeps the suite in one process;
         # the tests are pure and share no ports.
         run: node --test --experimental-test-isolation=none "tests/*.test.js"

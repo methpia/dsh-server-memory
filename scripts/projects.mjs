@@ -18,8 +18,8 @@ import { readFile } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 
-import { MemoryClient } from '../plugin/lib/client.js'
-import { normalizeConfig } from '../plugin/lib/config.js'
+import { MemoryClient } from '../plugins/lib/client.js'
+import { normalizeConfig } from '../plugins/lib/config.js'
 
 function parseArgs(argv) {
   const positional = []

@@ -1,0 +1,19 @@
+# Marketplace entry for awesome-dsh-plugin
+#
+# The list is generated from data/plugins/, one YAML per plugin. Submit this as a
+# pull request adding `data/plugins/methpia__dsh-server-memory--plugins.yml`.
+# Do not edit either README in that repository — they are regenerated.
+#
+# Why the subdirectory URL: the DSH plugin lives in `plugins/` of this repo (the
+# memoryd server and the WorkBuddy adapter sit beside it). Submitting the
+# subdirectory keeps `dsh plugin add` pointed at the package that actually
+# declares `dsh.bundle`.
+#
+# Entry file name: methpia__dsh-server-memory--plugins.yml
+url: https://github.com/methpia/dsh-server-memory/tree/main/plugins
+name: methpia/dsh-server-memory#plugins
+category: memory
+description:
+  en: 'Self-hosted project memory for DSH: a compact prompt index, search and save tools, and one LLM-free consolidation per day against your own memoryd server.'
+  zh: '自托管项目记忆：紧凑的提示索引、检索与写入工具，以及每天一次、服务端不调用 LLM 的聚合，数据存在你自己的 memoryd 里。'
+icon: https://raw.githubusercontent.com/methpia/dsh-server-memory/main/assets/icon-180.png

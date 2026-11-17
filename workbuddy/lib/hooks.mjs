@@ -12,7 +12,7 @@
  * @module dsh-server-memory/workbuddy/hooks
  */
 
-import { renderIndex } from '../../plugin/lib/prompt.js'
+import { renderIndex } from '../../plugins/lib/prompt.js'
 
 const MAX_PROJECTS_IN_DIRECTORY = 8
 const MAX_ALIASES_SHOWN = 3

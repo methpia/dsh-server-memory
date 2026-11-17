@@ -246,3 +246,35 @@ test('oversized memories are rejected before the request', async () => {
   )
   assert.equal(client.calls.length, 0)
 })
+
+test('an explicit project id is used as-is', async () => {
+  const client = stubClient({ search: () => ({ items: [] }) })
+  client.listProjects = async () => ({ projects: [{ id: 'cheyidao' }] })
+  client.resolve = async () => ({ project: 'should-not-be-used' })
+  const { byName } = build({ client })
+  await byName.get('memory_search').execute({ query: 'x', project: 'cheyidao' }, AGENT)
+  const call = client.calls.find((entry) => entry.name === 'search')
+  assert.equal(call.args[0], 'cheyidao')
+})
+
+test('an alias is resolved to its project id', async () => {
+  const client = stubClient({ search: () => ({ items: [] }) })
+  client.listProjects = async () => ({ projects: [{ id: 'dsh' }] })
+  client.resolve = async (text) => ({ project: text === '车易到' ? 'cheyidao' : null })
+  const { byName } = build({ client })
+  await byName.get('memory_search').execute({ query: '工程铁律', project: '车易到' }, AGENT)
+  const call = client.calls.find((entry) => entry.name === 'search')
+  assert.equal(call.args[0], 'cheyidao')
+})
+
+test('an unknown project is a tool error, not a silent fallback', async () => {
+  const client = stubClient({ search: () => ({ items: [] }) })
+  client.listProjects = async () => ({ projects: [] })
+  client.resolve = async () => ({ project: null })
+  const { byName } = build({ client })
+  await assert.rejects(
+    () => byName.get('memory_search').execute({ query: 'x', project: '不存在' }, AGENT),
+    (error) => error instanceof MemoryError && /找不到项目或别名/.test(error.message),
+  )
+  assert.equal(client.calls.some((entry) => entry.name === 'search'), false)
+})

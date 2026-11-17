@@ -9,7 +9,7 @@
 ## Checks
 
 - [ ] `python3 -m unittest discover -s server/tests` passes
-- [ ] `cd plugin && node --test --experimental-test-isolation=none "tests/*.test.js"` passes
+- [ ] `cd plugins && node --test --experimental-test-isolation=none "tests/*.test.js"` passes
 - [ ] `node scripts/smoke.mjs --url <running service> --token-file <token>` passes (if the API changed)
 - [ ] No new Python dependency was added
 - [ ] No code path writes a full session transcript into the database

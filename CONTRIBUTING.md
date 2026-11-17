@@ -14,7 +14,7 @@
 python -m unittest discover -s server/tests -v
 
 # 插件（10 个文件）
-cd plugin && node --test --experimental-test-isolation=none "tests/*.test.js"     # 98 checks
+cd plugins && node --test --experimental-test-isolation=none "tests/*.test.js"     # 98 checks
 cd workbuddy && node --test --experimental-test-isolation=none "tests/*.test.js"  # 19 checks (adapter)
 ```
 

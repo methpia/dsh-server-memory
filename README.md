@@ -55,7 +55,7 @@ day in the agent, driven by a per-project watermark.
 
 | Path | What |
 |---|---|
-| `plugin/` | The DSH plugin (ESM, no dependencies) — prompt index, tools, settings page, transcript digest |
+| `plugins/` | The DSH plugin (ESM, no dependencies) — prompt index, tools, settings page, transcript digest |
 | `workbuddy/` | WorkBuddy adapter: stdio MCP server (incl. consolidation), two hooks, installer, its own tests |
 | `server/` | `memoryd.py` (Python 3.9 stdlib), launchd/systemd units, backup script, tests |
 | `scripts/smoke.mjs` | 16-check end-to-end test against a running service |
@@ -114,9 +114,10 @@ printf '%s' '<token>' > ~/.config/dsh-memory/token && chmod 600 ~/.config/dsh-me
 
 Install in DSH, one of:
 
-1. **Plugin market** — search for `dsh-server-memory`;
-2. **Local checkout** — `plugin_manager` → `install_bundle` with `target` set to the absolute path of `plugin/`;
-3. **Manual** — merge the insert row from `plugin/cordis.patch.yml` into your profile patch.
+1. **Plugin market** — search for `dsh-server-memory` once listed (the entry file is
+   [`docs/marketplace-entry.yml`](docs/marketplace-entry.yml));
+2. **Local checkout** — `plugin_manager` → `install_bundle` with `target` set to the absolute path of `plugins/`;
+3. **Manual** — merge the insert row from `plugins/cordis.patch.yml` into your profile patch.
 
 Override the endpoint in your profile patch (keyed by id):
 
@@ -160,7 +161,7 @@ verification steps and limitations: [docs/WORKBUDDY.md](docs/WORKBUDDY.md).
 
 ```bash
 python3 -m unittest discover -s server/tests -v        # 47 checks, Python 3.9+
-cd plugin && node --test --experimental-test-isolation=none "tests/*.test.js"      # 98 checks, Node 22.15+/24
+cd plugins && node --test --experimental-test-isolation=none "tests/*.test.js"      # 98 checks, Node 22.15+/24
 cd workbuddy && node --test --experimental-test-isolation=none "tests/*.test.js"  # 19 checks
 node scripts/smoke.mjs --url http://127.0.0.1:8788 --token-file ~/.config/dsh-memory/token   # 16 e2e checks
 ```

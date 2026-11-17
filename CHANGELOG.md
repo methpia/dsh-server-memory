@@ -4,6 +4,29 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project uses
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.0] - 2026-11-17
+
+Marketplace readiness, and projects addressable by name from DSH too.
+
+### Added
+
+- `memory_search`, `memory_save`, `memory_forget` and `memory_consolidate` accept an optional
+  `project` argument — a project id or one of its aliases ("车易到") — so a DSH conversation can reach
+  another project, not only the working directory's. Unknown names fail loudly instead of silently
+  falling back to the current project.
+- `assets/icon-180.png`: a raster icon (the marketplace serves GitHub-hosted bitmaps and cannot use the
+  SVG).
+- `docs/marketplace-entry.yml`: the `awesome-dsh-plugin` submission, kept in-repo so the entry and the
+  package cannot drift.
+- Repository topic `dsh-plugin` (a listing prerequisite).
+
+### Changed
+
+- **`plugin/` moved to `plugins/`.** The marketplace manifest probe reads `package.json` at the repo
+  root or a `packages/` · `plugins/` · `apps/` subpackage; a singular `plugin/` directory is not
+  probed. Imports, tests, CI paths and docs were updated.
+- Plugin tests: 98 → 101 (three cases covering id, alias and unknown-project handling).
+
 ## [0.4.0] - 2026-11-13
 
 Container deployment.
