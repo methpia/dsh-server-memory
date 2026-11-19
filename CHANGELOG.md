@@ -4,6 +4,16 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project uses
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.1] - 2026-11-19
+
+Declare the DSH version this plugin needs.
+
+### Added
+
+- `engines.dsh` in `plugins/package.json` (`>=0.2.0-rc.2`), so the market can filter by host
+  compatibility and `dsh plugin add` refuses an incompatible host instead of failing later. Packages
+  without it fall back to their `@deepseek-ai/dsh*` peer dependencies, which this plugin has none of.
+
 ## [0.6.0] - 2026-11-17
 
 Projects can now be created from DSH, not only from WorkBuddy.
