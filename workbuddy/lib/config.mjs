@@ -23,7 +23,7 @@ import { readFile } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 
-import { expandHome, normalizeConfig } from '../../plugins/lib/config.js'
+import { expandHome, normalizeConfig } from '../../dsh-server-memory/lib/config.js'
 
 export const CONFIG_DIR = join(homedir(), '.config', 'dsh-memory')
 export const DEFAULT_CONFIG_PATH = join(CONFIG_DIR, 'workbuddy.json')
@@ -41,7 +41,7 @@ export async function readJsonFile(path) {
 
 /**
  * @param {NodeJS.ProcessEnv} [env]
- * @returns {Promise<import('../../plugins/lib/config.js').MemorySettings & {stateFile: string, configPath: string}>}
+ * @returns {Promise<import('../../dsh-server-memory/lib/config.js').MemorySettings & {stateFile: string, configPath: string}>}
  */
 export async function loadWorkbuddyConfig(env = process.env) {
   const configPath = expandHome(env.DSH_MEMORY_CONFIG || DEFAULT_CONFIG_PATH)

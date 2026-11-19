@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import test from 'node:test'
 
-import { normalizeConfig } from '../../plugins/lib/config.js'
+import { normalizeConfig } from '../../dsh-server-memory/lib/config.js'
 import { loadWorkbuddyConfig } from '../lib/config.mjs'
 import {
   buildNoProjectHint,

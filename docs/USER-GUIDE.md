@@ -128,13 +128,13 @@ tailscale serve --bg --https=8443 http://127.0.0.1:8788
 
 The plugin needs the repo on disk (it is not published to npm). Clone it on the **client** machine, then pick one:
 
-**From DSH (recommended)** — run the plugin manager and point `target` at the `plugins/` directory:
+**From DSH (recommended)** — run the plugin manager and point `target` at the `dsh-server-memory/` directory:
 
 ```text
 plugin_manager install_bundle { "target": "/absolute/path/to/dsh-server-memory/plugin" }
 ```
 
-**Manually** — merge the insert row from `plugins/cordis.patch.yml` into your profile's `cordis.patch.yml`. Your profile
+**Manually** — merge the insert row from `dsh-server-memory/cordis.patch.yml` into your profile's `cordis.patch.yml`. Your profile
 patch belongs to you, so prefer the plugin manager when it works.
 
 After installing, restart DSH. The tool list should show `memory_search`, `memory_save`, `memory_forget`,

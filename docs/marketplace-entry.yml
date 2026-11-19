@@ -1,17 +1,18 @@
 # Marketplace entry for awesome-dsh-plugin
 #
 # The list is generated from data/plugins/, one YAML per plugin. Submit this as a
-# pull request adding `data/plugins/methpia__dsh-server-memory--plugins.yml`.
-# Do not edit either README in that repository — they are regenerated.
+# pull request that RENAMES the existing entry file:
+#   data/plugins/methpia__dsh-server-memory--plugins.yml
+#   -> data/plugins/methpia__dsh-server-memory--dsh-server-memory.yml
+# and updates its url/name as below. Do not edit either README in that
+# repository — they are regenerated.
 #
-# Why the subdirectory URL: the DSH plugin lives in `plugins/` of this repo (the
-# memoryd server and the WorkBuddy adapter sit beside it). Submitting the
-# subdirectory keeps `dsh plugin add` pointed at the package that actually
-# declares `dsh.bundle`.
-#
-# Entry file name: methpia__dsh-server-memory--plugins.yml
-url: https://github.com/methpia/dsh-server-memory/tree/main/plugins
-name: methpia/dsh-server-memory#plugins
+# Why the subdirectory URL: the DSH plugin lives in `dsh-server-memory/` of this
+# repo (the memoryd server and the WorkBuddy adapter sit beside it). The
+# directory leaf becomes the storefront name, so it must be the product name —
+# that is exactly why it is not called `plugins/`.
+url: https://github.com/methpia/dsh-server-memory/tree/main/dsh-server-memory
+name: methpia/dsh-server-memory#dsh-server-memory
 category: memory
 description:
   en: 'Self-hosted project memory for DSH: a compact prompt index, search and save tools, and up to one consolidation per day written back to your own memoryd service, which runs on your laptop, a LAN box or a cloud server and never calls an LLM itself.'

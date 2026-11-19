@@ -6,7 +6,7 @@
 ## 1. 分层
 
 ```
-┌──────────────────────────── plugins/ ────────────────────────────┐
+┌──────────────────────────── dsh-server-memory/ ────────────────────────────┐
 │ index.js          组装：normalizeConfig → client → cache →      │
 │                   tools + systemPrompt.section + 设置页路由      │
 │ client.js         设置 → 内置插件 → 项目记忆（React 页面）       │
@@ -99,7 +99,7 @@ agent 用自己的模型总结
 | 调整检索条数、字段 | `lib/tools.js` 的 `memory_search` + `client.search` |
 | 换/加一个记忆服务端点 | `lib/client.js` 一个方法 + `server/memoryd.py` 的 `_route` |
 | 改项目识别规则 | `lib/project.js`；规则顺序写在文件头注释 |
-| 设置页字段/动作 | `plugins/client.js`（页面）+ `lib/admin.js`（路由与持久化） |
+| 设置页字段/动作 | `dsh-server-memory/client.js`（页面）+ `lib/admin.js`（路由与持久化） |
 | WorkBuddy 项目识别 | `workbuddy/lib/project.mjs`（显式 → 文本 → 会话 → cwd → 最近 → 默认） |
 | 新增/修改项目别名 | 设置页、`POST /api/projects`，或 `scripts/projects.mjs set` |
 | 改 WorkBuddy 注入文案 | `workbuddy/lib/hooks.mjs`（复用 `renderIndex` 预算） |
@@ -109,7 +109,7 @@ agent 用自己的模型总结
 | 改摘要指令或 few-shot | `lib/digest.js` 的 `buildInstructions` |
 | 改检索排序权重 | `server/config.example.json` 的 `ranking`，代码不用动 |
 | 加数据库字段/表 | `memoryd.py` 的 `SCHEMA_SQL` + `SCHEMA_VERSION` + 迁移分支 |
-| 加插件市场展示信息 | `plugins/locale/*.json`、`plugins/icon.svg`、`package.json` 的 `files` |
+| 加插件市场展示信息 | `dsh-server-memory/locale/*.json`、`dsh-server-memory/icon.svg`、`package.json` 的 `files` |
 | 加新工具 | `lib/tools.js` 的 `createTools` 返回数组里追加；`index.js` 自动注册 |
 
 ## 4. 约定

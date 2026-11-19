@@ -4,6 +4,20 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project uses
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.2] - 2026-11-19
+
+The package directory is now the product name.
+
+### Changed
+
+- **`plugins/` renamed to `dsh-server-memory/`.** For a subdirectory submission the marketplace derives
+  the storefront name from the directory leaf (`pluginName()` in the market client falls back to it when
+  the entry has no npm mapping), so a generic `plugins/` directory was displayed as "plugins". Imports,
+  CI paths, profile links and docs updated; the package name and every tool are unchanged.
+- `docs/marketplace-entry.yml` repointed to `.../tree/main/dsh-server-memory` with
+  `name: methpia/dsh-server-memory#dsh-server-memory`; the submission becomes a rename of the entry
+  file in awesome-dsh-plugin.
+
 ## [0.6.1] - 2026-11-19
 
 Declare the DSH version this plugin needs.

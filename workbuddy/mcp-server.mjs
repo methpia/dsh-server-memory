@@ -22,10 +22,10 @@ import { randomUUID } from 'node:crypto'
 import { resolve as resolvePath } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-import { MemoryClient, MemoryError, describeMemoryError } from '../plugins/lib/client.js'
-import { clampInt } from '../plugins/lib/config.js'
-import { planDigest } from '../plugins/lib/digest.js'
-import { formatLocalDateTime, toSingleLine } from '../plugins/lib/prompt.js'
+import { MemoryClient, MemoryError, describeMemoryError } from '../dsh-server-memory/lib/client.js'
+import { clampInt } from '../dsh-server-memory/lib/config.js'
+import { planDigest } from '../dsh-server-memory/lib/digest.js'
+import { formatLocalDateTime, toSingleLine } from '../dsh-server-memory/lib/prompt.js'
 import { loadWorkbuddyConfig } from './lib/config.mjs'
 import { resolveProject } from './lib/project.mjs'
 import { loadState, remember, saveState } from './lib/state.mjs'
@@ -156,7 +156,7 @@ function textResult(text, isError = false) {
  *
  * @param {object} options
  * @param {any} options.settings
- * @param {import('../plugins/lib/client.js').MemoryClient} options.client
+ * @param {import('../dsh-server-memory/lib/client.js').MemoryClient} options.client
  * @param {string} options.stateFile
  * @param {string} [options.cwd]
  * @param {() => number} [options.now]

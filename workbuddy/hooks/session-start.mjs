@@ -16,7 +16,7 @@
 import { resolve as resolvePath } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-import { MemoryClient } from '../../plugins/lib/client.js'
+import { MemoryClient } from '../../dsh-server-memory/lib/client.js'
 import { loadWorkbuddyConfig } from '../lib/config.mjs'
 import { buildSessionStartContext, hookOutput } from '../lib/hooks.mjs'
 import { resolveFromText } from '../lib/project.mjs'

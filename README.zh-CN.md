@@ -51,7 +51,7 @@ memory-plugin/
 │   ├── launchd/                # 常驻与每日备份的 launchd 单元
 │   ├── scripts/backup.sh       # sqlite3 .backup，保留 14 份
 │   └── tests/test_memoryd.py   # 47 个 unittest（含中文检索、限额、claim、别名、迁移）
-├── plugins/                     # 装进 DSH 的 npm 包 `dsh-server-memory`
+├── dsh-server-memory/                     # 装进 DSH 的 npm 包 `dsh-server-memory`
 │   ├── index.js                # 注入 section + 注册工具 + 设置页路由
 │   ├── client.js               # 设置 → 插件 → 项目记忆 页面
 │   ├── lib/                    # 配置 / 客户端 / 缓存 / 项目识别 / 转录 / 摘要 / 工具 / 设置路由
@@ -118,8 +118,8 @@ printf '%s' '<token>' > ~/.config/dsh-memory/token && chmod 600 ~/.config/dsh-me
 
 1. **插件市场**：搜索 `dsh-server-memory` 安装（包名 `dsh-server-memory`；收录条目见
    [`docs/marketplace-entry.yml`](docs/marketplace-entry.yml)，目前待提交）；
-2. **本地目录**：在 DSH 里用 `plugin_manager` 的 `install_bundle`，`target` 传本仓库 `plugins/` 的绝对路径；
-3. **手动**：把 `plugins/cordis.patch.yml` 的 insert 行合并进 profile 的 `cordis.patch.yml`（不推荐，profile 文件归用户所有）。
+2. **本地目录**：在 DSH 里用 `plugin_manager` 的 `install_bundle`，`target` 传本仓库 `dsh-server-memory/` 的绝对路径；
+3. **手动**：把 `dsh-server-memory/cordis.patch.yml` 的 insert 行合并进 profile 的 `cordis.patch.yml`（不推荐，profile 文件归用户所有）。
 
 最小配置（bundle patch；要覆盖时在 profile 的 `cordis.patch.yml` 里按 id `dsh-server-memory` 写 override）：
 
@@ -172,7 +172,7 @@ node workbuddy/install.mjs --apply --url http://192.168.5.5:8788 --token-file ~/
 python3 -m unittest discover -s server/tests -v
 
 # 插件 98 项（Node 22.15+ / 24）
-cd plugins && node --test --experimental-test-isolation=none "tests/*.test.js"
+cd dsh-server-memory && node --test --experimental-test-isolation=none "tests/*.test.js"
 
 # WorkBuddy 适配 19 项（转录、聚合、MCP 协议）
 cd workbuddy && node --test --experimental-test-isolation=none "tests/*.test.js"
