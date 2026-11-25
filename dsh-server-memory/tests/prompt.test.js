@@ -114,3 +114,25 @@ test('toSingleLine flattens control characters and truncates', () => {
   assert.equal(toSingleLine('a\nb\tc'), 'a b c')
   assert.equal(toSingleLine('x'.repeat(30), 10), 'xxxxxxxxx…')
 })
+
+test('a failed refresh says so instead of going silent', () => {
+  const text = renderIndex({
+    project: 'dsh',
+    snapshot: snapshot({
+      items: [],
+      total: 0,
+      error: '记忆服务不可达（http://127.0.0.1:8788）：fetch failed',
+    }),
+    settings,
+  })
+  assert.match(text, /记忆服务未连接/)
+  assert.match(text, /memory_setup/)
+  assert.ok(text.length <= settings.indexMaxChars)
+})
+
+test('an empty project without an error stays silent', () => {
+  assert.equal(
+    renderIndex({ project: 'dsh', snapshot: snapshot({ items: [], total: 0, error: undefined }), settings }),
+    '',
+  )
+})

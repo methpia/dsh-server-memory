@@ -147,3 +147,36 @@ test('describeMemoryError never leaks the token', () => {
   assert.equal(describeMemoryError(error), '记忆服务不可达（unreachable）')
   assert.ok(!describeMemoryError(error).includes('secret'))
 })
+
+test('a rejected token is re-read once and the request retried', async () => {
+  let token = 'stale'
+  const seen = []
+  const fetchImpl = fakeFetch((_url, init) => {
+    seen.push(init.headers.authorization)
+    return init.headers.authorization === 'Bearer fresh'
+      ? jsonResponse(200, { projects: [] })
+      : jsonResponse(401, { error: { code: 'unauthorized', message: 'missing or invalid bearer token' } })
+  })
+  const provider = async () => token
+  provider.invalidate = () => {
+    token = 'fresh'
+  }
+  const client = new MemoryClient(settings({ token: '' }), { fetchImpl, tokenProvider: provider })
+  const payload = await client.listProjects()
+  assert.deepEqual(payload, { projects: [] })
+  assert.deepEqual(seen, ['Bearer stale', 'Bearer fresh'])
+})
+
+test('a second rejection is reported instead of retrying forever', async () => {
+  const provider = async () => 'bad'
+  provider.invalidate = () => {}
+  const fetchImpl = fakeFetch(() =>
+    jsonResponse(401, { error: { code: 'unauthorized', message: 'nope' } }),
+  )
+  const client = new MemoryClient(settings({ token: '' }), { fetchImpl, tokenProvider: provider })
+  await assert.rejects(
+    () => client.listProjects(),
+    (error) => error instanceof MemoryError && error.status === 401,
+  )
+  assert.equal(fetchImpl.calls.length, 2)
+})

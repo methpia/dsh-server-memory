@@ -40,6 +40,9 @@
 └─────────────────────────────────────────────────────────────────┘
 ```
 
+`dsh-server-memory/server/memoryd.py` 是 `server/memoryd.py` 的**逐字节副本**（放进 npm 包，让市场安装也能直接跑服务）；
+`dsh-server-memory/tests/setup.test.js` 里有防漂移断言，改任意一份都要同步另一份。
+
 配套资产：`server/launchd/`（macOS 常驻）、`server/systemd/`（Linux 常驻）、`server/scripts/backup.sh`（每日备份）、
 `scripts/smoke.mjs`（16 项端到端）、`scripts/projects.mjs`（设置别名 / 解析项目）、
 `.github/workflows/ci.yml`（Python 3.9/3.12 + Node 22/24 + 端到端）。

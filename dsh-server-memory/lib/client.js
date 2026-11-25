@@ -79,33 +79,48 @@ export class MemoryClient {
     }
 
     /** @type {Record<string, string>} */
-    const headers = { accept: 'application/json' }
-    if (body !== undefined) headers['content-type'] = 'application/json; charset=utf-8'
-    if (auth) {
-      const token = await this.tokenProvider()
-      if (!token) {
+    const baseHeaders = { accept: 'application/json' }
+    if (body !== undefined) baseHeaders['content-type'] = 'application/json; charset=utf-8'
+
+    const send = async () => {
+      const headers = { ...baseHeaders }
+      if (auth) {
+        const token = await this.tokenProvider()
+        if (!token) {
+          throw new MemoryError(
+            '未配置记忆服务 token：请在插件配置里设置 token 或 tokenFile，或设置 DSH_MEMORY_TOKEN',
+            { code: 'no-token' },
+          )
+        }
+        headers.authorization = `Bearer ${token}`
+      }
+      try {
+        return await this.fetchImpl(url.toString(), {
+          method,
+          headers,
+          body: body === undefined ? undefined : JSON.stringify(body),
+          signal: timeoutSignal(this.settings.requestTimeoutMs),
+        })
+      } catch (error) {
+        const reason = error instanceof Error ? error.message : String(error)
         throw new MemoryError(
-          '未配置记忆服务 token：请在插件配置里设置 token 或 tokenFile，或设置 DSH_MEMORY_TOKEN',
-          { code: 'no-token' },
+          `记忆服务不可达（${this.settings.serverUrl}）：${reason}`,
+          { code: 'unreachable', cause: error },
         )
       }
-      headers.authorization = `Bearer ${token}`
     }
 
-    let response
-    try {
-      response = await this.fetchImpl(url.toString(), {
-        method,
-        headers,
-        body: body === undefined ? undefined : JSON.stringify(body),
-        signal: timeoutSignal(this.settings.requestTimeoutMs),
-      })
-    } catch (error) {
-      const reason = error instanceof Error ? error.message : String(error)
-      throw new MemoryError(
-        `记忆服务不可达（${this.settings.serverUrl}）：${reason}`,
-        { code: 'unreachable', cause: error },
-      )
+    let response = await send()
+    if (auth && response.status === 401 && typeof this.tokenProvider.invalidate === 'function') {
+      // A rotated token file is the usual cause; drop the cached value and try
+      // once more so the new token applies without waiting out the cache TTL.
+      this.tokenProvider.invalidate()
+      try {
+        await response.body?.cancel?.()
+      } catch {
+        // The retry matters more than draining the first body.
+      }
+      response = await send()
     }
 
     const text = await response.text()

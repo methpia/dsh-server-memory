@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 
 import { createAdminRoute, publicSettings } from '../lib/admin.js'
+import { MemoryError } from '../lib/client.js'
 import { normalizeConfig } from '../lib/config.js'
 
 function settings(overrides = {}) {
@@ -152,6 +153,23 @@ test('health and project actions proxy to the memory service', async () => {
   assert.deepEqual(saved.project.aliases, ['车易到', 'cheyidao'])
 })
 
+test('the connection test fails when the service rejects the token', async () => {
+  const route = createAdminRoute({
+    ctx: context({}),
+    client: fakeClient({
+      listProjects: () => {
+        throw new MemoryError('missing or invalid bearer token', { code: 'unauthorized', status: 401 })
+      },
+    }),
+    settings: settings(),
+    config: {},
+  })
+  const payload = await (await request(route, { action: 'health' })).json()
+  assert.equal(payload.ok, false)
+  assert.ok(payload.error.includes('missing or invalid bearer token'))
+  assert.ok(payload.error.includes('token'))
+})
+
 test('a service outage is reported to the page instead of throwing', async () => {
   const route = createAdminRoute({
     ctx: context({}),
@@ -189,4 +207,27 @@ test('unknown actions are rejected', async () => {
   const response = await request(route, { action: 'nope' })
   assert.equal(response.status, 400)
   assert.equal((await response.json()).code, 'unknown-action')
+})
+
+test('the setup action returns deployment steps and the docs link', async () => {
+  const route = createAdminRoute({ ctx: context({}), client: fakeClient(), settings: settings(), config: {} })
+  const payload = await (await request(route, { action: 'setup' })).json()
+  assert.equal(payload.ok, true)
+  assert.match(payload.setup, /--init-config/)
+  assert.match(payload.docsUrl, /github\.com/)
+})
+
+test('the setup action names a rejected token', async () => {
+  const route = createAdminRoute({
+    ctx: context({}),
+    client: fakeClient({
+      listProjects: () => {
+        throw new MemoryError('missing or invalid bearer token', { code: 'unauthorized', status: 401 })
+      },
+    }),
+    settings: settings(),
+    config: {},
+  })
+  const payload = await (await request(route, { action: 'setup' })).json()
+  assert.match(payload.setup, /token 缺失或被拒绝/)
 })

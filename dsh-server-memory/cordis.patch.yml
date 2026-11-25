@@ -1,15 +1,17 @@
 # dsh-server-memory bundle patch.
 #
-# Installs one Host plugin row. Every config field is optional; the values here
-# are the documented defaults except for `tokenFile`, which must point at the
-# file holding the memoryd bearer token on this machine.
+# Installs one Host plugin row and deliberately ships NO config block: every
+# field falls back to the documented default in lib/config.js, so an install
+# can be pointed elsewhere without editing this file —
 #
-# Recommended: create a token file with mode 600 instead of inlining `token`.
+#   DSH_MEMORY_SERVER_URL=http://192.168.5.5:8788
+#   DSH_MEMORY_TOKEN_FILE=~/.config/dsh-memory/token
+#
+# or through Settings → Built-in plugins → Project memory, which persists the
+# explicit values into your own profile patch.
+#
+# Do not put `serverUrl:` here: a row value wins over the environment fallback,
+# and it would pin every user of this package to one host.
 - insert:
     - id: dsh-server-memory
       name: dsh-server-memory
-      config:
-        serverUrl: http://127.0.0.1:8788
-        tokenFile: ~/.config/dsh-memory/token
-        defaultProject: default
-        projectMap: {}

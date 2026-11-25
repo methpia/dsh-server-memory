@@ -19,6 +19,7 @@ import { MemoryError, describeMemoryError } from './client.js'
 import { clampInt } from './config.js'
 import { planDigest } from './digest.js'
 import { formatLocalDateTime, toSingleLine } from './prompt.js'
+import { deploymentText, setupHintFor } from './setup.js'
 import { collectDigestInput } from './transcripts.js'
 
 const MAX_TEXT_CHARS = 4000
@@ -472,5 +473,65 @@ export function createTools(options) {
     },
   }
 
-  return [search, save, projects, forget, consolidate]
+  const setup = {
+    name: 'memory_setup',
+    description:
+      '当记忆服务未连接（工具返回 unreachable / no-token / 401），或用户问“记忆服务怎么装、怎么配、为什么没生效”时调用：' +
+      '返回本机可直接执行的部署与配置步骤，并说明当前连接状态。不修改任何文件。',
+    parameters: { type: 'object', properties: {}, additionalProperties: false },
+    output: stringOutput(),
+    async execute() {
+      let reachable = null
+      let tokenRejected = false
+      try {
+        await client.health()
+        reachable = true
+      } catch {
+        reachable = false
+      }
+      if (reachable === true) {
+        try {
+          await client.listProjects()
+        } catch (error) {
+          tokenRejected =
+            error instanceof MemoryError &&
+            (error.status === 401 || error.code === 'unauthorized' || error.code === 'no-token')
+        }
+      }
+      return deploymentText({
+        serverUrl: settings.serverUrl,
+        hasToken: settings.token !== '' || settings.tokenFile !== '',
+        reachable,
+        tokenRejected,
+      })
+    },
+  }
+
+  const tools = [search, save, projects, forget, consolidate, setup]
+  return tools.map(withSetupHint)
+}
+
+/**
+ * Append the "how do I get a service" hint to failures that are about the
+ * connection rather than about the request, so a first run is self-explaining.
+ * @param {any} tool
+ */
+function withSetupHint(tool) {
+  const run = tool.execute
+  return {
+    ...tool,
+    async execute(args, exec) {
+      try {
+        return await run(args, exec)
+      } catch (error) {
+        const hint = setupHintFor(error)
+        if (hint === '' || !(error instanceof Error)) throw error
+        throw new MemoryError(`${describeMemoryError(error)}${hint}`, {
+          code: /** @type {any} */ (error).code,
+          status: /** @type {any} */ (error).status,
+          cause: error,
+        })
+      }
+    },
+  }
 }

@@ -25,6 +25,8 @@ function stubClient(overrides = {}) {
     forget: wrap('forget', () => ({ deleted: true })),
     claim: wrap('claim', () => ({ claimed: false, reason: 'too_soon', next_at: null })),
     setWatermark: wrap('setWatermark', () => ({ ok: true })),
+    health: wrap('health', () => ({ ok: true, projects: 1, items: 2 })),
+    listProjects: wrap('listProjects', () => ({ projects: [] })),
   }
 }
 
@@ -60,7 +62,7 @@ test('every tool is registered with a schema and one result renderer', () => {
   const { tools } = build()
   assert.deepEqual(
     tools.map((tool) => tool.name),
-    ['memory_search', 'memory_save', 'memory_projects', 'memory_forget', 'memory_consolidate'],
+    ['memory_search', 'memory_save', 'memory_projects', 'memory_forget', 'memory_consolidate', 'memory_setup'],
   )
   for (const tool of tools) {
     assert.equal(tool.parameters.type, 'object')
@@ -323,4 +325,63 @@ test('memory_projects resolves a phrase to a project', async () => {
   )
   assert.match(rendered, /cheyidao/)
   assert.match(rendered, /车易到/)
+})
+
+
+test('memory_setup explains deployment and mirrors the connection state', async () => {
+  const { byName } = build()
+  const text = await byName.get('memory_setup').execute({}, AGENT)
+  assert.match(text, /memoryd/)
+  assert.match(text, /--init-config/)
+  assert.match(text, /已连接|未连接|不可达/)
+  assert.match(text, /DSH_MEMORY_SERVER_URL/)
+})
+
+test('memory_setup reports an unreachable service instead of throwing', async () => {
+  const { byName } = build({
+    client: stubClient({
+      health: () => {
+        throw new MemoryError('记忆服务不可达', { code: 'unreachable' })
+      },
+    }),
+  })
+  const text = await byName.get('memory_setup').execute({}, AGENT)
+  assert.match(text, /不可达/)
+})
+
+test('connection failures tell the caller to run memory_setup', async () => {
+  const { byName } = build({
+    client: stubClient({
+      search: () => {
+        throw new MemoryError('记忆服务不可达（http://127.0.0.1:8788）：fetch failed', {
+          code: 'unreachable',
+        })
+      },
+    }),
+  })
+  await assert.rejects(
+    () => byName.get('memory_search').execute({ query: 'x' }, AGENT),
+    (error) => {
+      assert.match(error.message, /memory_setup/)
+      assert.equal(error.code, 'unreachable')
+      return true
+    },
+  )
+})
+
+test('request failures that are not about the connection stay untouched', async () => {
+  const { byName } = build({
+    client: stubClient({
+      search: () => {
+        throw new MemoryError('query 不能为空', { code: 'invalid-query' })
+      },
+    }),
+  })
+  await assert.rejects(
+    () => byName.get('memory_search').execute({ query: 'x' }, AGENT),
+    (error) => {
+      assert.doesNotMatch(error.message, /memory_setup/)
+      return true
+    },
+  )
 })

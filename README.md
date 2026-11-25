@@ -56,6 +56,7 @@ day in the agent, driven by a per-project watermark.
 | Path | What |
 |---|---|
 | `dsh-server-memory/` | The DSH plugin (ESM, no dependencies) — prompt index, tools, settings page, transcript digest |
+| `dsh-server-memory/server/` | A byte-identical copy of `server/memoryd.py`, shipped in the package so a marketplace install can run the service without cloning; a test fails when the two drift apart |
 | `workbuddy/` | WorkBuddy adapter: stdio MCP server (incl. consolidation), two hooks, installer, its own tests |
 | `server/` | `memoryd.py` (Python 3.9 stdlib), launchd/systemd units, backup script, tests |
 | `scripts/smoke.mjs` | 16-check end-to-end test against a running service |
@@ -63,7 +64,8 @@ day in the agent, driven by a per-project watermark.
 | `docs/WORKBUDDY.md` | WorkBuddy setup, consolidation and the keyword→project rules |
 | `DESIGN.md` | Full design: data model, API, consolidation protocol, cost model, incidents |
 
-> **This repo is a client + server pair.** The plugin does nothing on its own — it needs a memoryd service you run.
+> **This repo is a client + server pair.** The plugin does nothing on its own — it needs a memoryd service you run
+> (the package carries a copy of the server so `memory_setup` can print exact commands for either layout).
 > If you are installing this for the first time, follow the [user guide](docs/USER-GUIDE.md) instead of the condensed
 > steps below; it covers the two-machine case, token distribution and the mistakes people actually hit.
 

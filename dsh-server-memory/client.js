@@ -73,6 +73,13 @@ window.__ModuleLoader__.load({
       creatingProject: '创建中…',
       createdRow: '已创建',
       projectIdRequired: '项目 id 不能为空',
+      setupToggle: '还没有记忆服务？查看部署步骤',
+      setupHide: '收起部署步骤',
+      setupLoading: '正在读取步骤…',
+      setupCopy: '复制步骤',
+      setupCopied: '已复制',
+      setupDocs: '打开文档',
+      setupError: '读取部署步骤失败',
     }
     const en = {
       tab: 'Project memory',
@@ -123,6 +130,13 @@ window.__ModuleLoader__.load({
       creatingProject: 'Creating…',
       createdRow: 'Created',
       projectIdRequired: 'A project id is required',
+      setupToggle: 'No memory service yet? Show deployment steps',
+      setupHide: 'Hide deployment steps',
+      setupLoading: 'Loading steps…',
+      setupCopy: 'Copy steps',
+      setupCopied: 'Copied',
+      setupDocs: 'Open docs',
+      setupError: 'Could not load the steps',
     }
 
     const CSS = `
@@ -166,6 +180,9 @@ window.__ModuleLoader__.load({
 .dsm-rowStatus{color:var(--dsw-alias-state-success-primary);font-size:12px;line-height:16px;min-height:16px}
 .dsm-rowStatus[data-error=true]{color:var(--dsw-alias-state-error-primary)}
 .dsm-empty{color:var(--dsw-alias-label-secondary);font-size:13px;padding:10px 0}
+.dsm-setup{margin-top:12px;padding-top:12px;border-top:0.5px solid var(--dsw-alias-border-l1)}
+.dsm-pre{margin:10px 0 0;padding:12px;border-radius:var(--dsw-radius-md,8px);background:var(--dsw-alias-bg-layer-2);color:var(--dsw-alias-label-secondary);font-family:var(--dsw-font-mono,ui-monospace,SFMono-Regular,Menlo,monospace);font-size:12px;line-height:18px;white-space:pre-wrap;word-break:break-word;max-height:320px;overflow:auto}
+a.dsm-btn{text-decoration:none}
 @media (max-width:640px){
   .dsm-grid{grid-template-columns:minmax(0,1fr)}
   .dsm-project{grid-template-columns:minmax(0,1fr);gap:6px}
@@ -226,6 +243,8 @@ window.__ModuleLoader__.load({
       const [notice, setNotice] = useState('')
       const [saveError, setSaveError] = useState('')
 
+      const [setup, setSetup] = useState({ open: false, loading: false, text: '', docsUrl: '', error: '', copied: false })
+
       const [projects, setProjects] = useState([])
       const [projectsState, setProjectsState] = useState('idle')
       const [projectsError, setProjectsError] = useState('')
@@ -267,6 +286,43 @@ window.__ModuleLoader__.load({
         }
       }, [applySettings])
 
+      const loadSetup = useCallback(async () => {
+        setSetup((current) => ({ ...current, loading: true, error: '' }))
+        try {
+          const data = await api({ action: 'setup' })
+          if (!mounted.current) return
+          setSetup((current) => ({
+            ...current,
+            loading: false,
+            text: typeof data.setup === 'string' ? data.setup : '',
+            docsUrl: typeof data.docsUrl === 'string' ? data.docsUrl : '',
+          }))
+        } catch (error) {
+          if (mounted.current) setSetup((current) => ({ ...current, loading: false, error: error.message }))
+        }
+      }, [])
+
+      const openSetup = useCallback(() => {
+        setSetup((current) => {
+          if (current.open) return { ...current, open: false }
+          return { ...current, open: true }
+        })
+        void loadSetup()
+      }, [loadSetup])
+
+      const copySetup = useCallback(async () => {
+        try {
+          await navigator.clipboard.writeText(setup.text)
+          if (!mounted.current) return
+          setSetup((current) => ({ ...current, copied: true }))
+          window.setTimeout(() => {
+            if (mounted.current) setSetup((current) => ({ ...current, copied: false }))
+          }, 1500)
+        } catch {
+          // Clipboard permission is not worth an error banner; the text is selectable.
+        }
+      }, [setup.text])
+
       const checkHealth = useCallback(async () => {
         setConnection({ state: 'checking', message: '' })
         try {
@@ -280,11 +336,13 @@ window.__ModuleLoader__.load({
             })
           } else {
             setConnection({ state: 'error', message: data.error ?? t('statusError') })
+            setSetup((current) => (current.open ? current : { ...current, open: true }))
+            void loadSetup()
           }
         } catch (error) {
           if (mounted.current) setConnection({ state: 'error', message: error.message })
         }
-      }, [])
+      }, [loadSetup])
 
       const loadProjects = useCallback(async () => {
         setProjectsState('loading')
@@ -473,6 +531,29 @@ window.__ModuleLoader__.load({
               ),
               saveError !== '' ? h('p', { className: 'dsm-alert', role: 'alert' }, saveError) : null,
               notice !== '' ? h('p', { className: 'dsm-notice', role: 'status' }, notice) : null,
+              h('div', { className: 'dsm-setup' },
+                h('button', { type: 'button', className: 'dsm-btn', onClick: openSetup },
+                  setup.open ? t('setupHide') : t('setupToggle')),
+                setup.open
+                  ? setup.loading
+                    ? h('div', { className: 'dsm-empty' }, t('setupLoading'))
+                    : setup.error !== ''
+                      ? h('p', { className: 'dsm-alert', role: 'alert' }, `${t('setupError')}：${setup.error}`)
+                      : h('div', null,
+                          h('pre', { className: 'dsm-pre' }, setup.text),
+                          h('div', { className: 'dsm-actions' },
+                            h('button', { type: 'button', className: 'dsm-btn', onClick: () => void copySetup() },
+                              setup.copied ? t('setupCopied') : t('setupCopy')),
+                            h('a', {
+                              className: 'dsm-btn',
+                              href: setup.docsUrl !== '' ? setup.docsUrl : 'https://github.com/methpia/dsh-server-memory#quick-start',
+                              target: '_blank',
+                              rel: 'noreferrer',
+                            }, t('setupDocs')),
+                          ),
+                        )
+                  : null,
+              ),
             )
           : null,
 

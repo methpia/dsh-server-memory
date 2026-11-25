@@ -10,6 +10,22 @@ The plugin talks to a self-hosted [`memoryd`](../server/memoryd.py) service 鈥?
 
 It keeps no local database, so every client that talks to the same service sees the same memory.
 
+## A service is required
+
+The plugin is a client. With no reachable `memoryd` it installs, activates and then does nothing visible, so it says
+so: the prompt index carries one line, tool failures end with "call `memory_setup`", and the settings page offers the
+steps. This package ships the server too (`server/memoryd.py`, Python 3.9 stdlib, no dependencies):
+
+```bash
+python3 server/memoryd.py --init-config --config ~/.config/dsh-memory/config.json   # prints the token
+python3 server/memoryd.py --config ~/.config/dsh-memory/config.json                 # serves 127.0.0.1:8788
+printf '%s' 'mem_xxx' > ~/.config/dsh-memory/token && chmod 600 ~/.config/dsh-memory/token
+```
+
+Ask the agent to run `memory_setup`, or open Settings → Built-in plugins → Project memory → **No memory service yet?**
+for the same steps, tailored to the configured URL. Running it on another machine? Set its `host` to `0.0.0.0`, allow
+8788 only on a trusted network, and point this plugin at it with `DSH_MEMORY_SERVER_URL`.
+
 ## Install
 
 **From the plugin market** 鈥?search for `dsh-server-memory`.
@@ -17,31 +33,41 @@ It keeps no local database, so every client that talks to the same service sees 
 **From a local checkout** 鈥?with the package directory as target:
 
 ```text
-plugin_manager install_bundle { "target": "<repo>/plugin" }
+plugin_manager install_bundle { "target": "<repo>/dsh-server-memory" }
 ```
 
 **Manually** 鈥?merge the insert row from `cordis.patch.yml` into your profile patch (the profile file belongs to you; prefer one of the paths above).
 
 ## Configure
 
-```yaml
-- insert:
-    - id: dsh-server-memory
-      name: dsh-server-memory
-      config:
-        serverUrl: http://127.0.0.1:8788
-        tokenFile: ~/.config/dsh-memory/token
-        defaultProject: default
-        projectMap:
-          D:\dsh: dsh
+The package installs with **no** `config` block: every field falls back to the documented default, so an install can be pointed at your own service without editing the package.
+
+Environment fallbacks, read when the row leaves the field empty:
+
+```bash
+export DSH_MEMORY_SERVER_URL=http://192.168.5.5:8788    # LAN box, VPS or Tailscale host
+export DSH_MEMORY_TOKEN_FILE=~/.config/dsh-memory/token
 ```
+
+Row override in your profile patch, when the value belongs to this profile rather than the machine:
+
+```yaml
+- id: dsh-server-memory
+  name: dsh-server-memory
+  config:
+    serverUrl: http://192.168.5.5:8788
+    tokenFile: ~/.config/dsh-memory/token
+    defaultProject: default
+```
+
+Row config wins over the environment fallback. Settings -> Built-in plugins -> **Project memory** writes the same values for you and can test the connection.
 
 The token comes from `token`, `tokenFile`, or `DSH_MEMORY_TOKEN`, in that order. Keep it out of the profile patch when you can.
 
 | Field | Default | Purpose |
 |---|---|---|
-| `serverUrl` | `http://127.0.0.1:8788` | memoryd base URL |
-| `token` / `tokenFile` | 鈥?/ `~/.config/dsh-memory/token` | bearer token source |
+| `serverUrl` | `http://127.0.0.1:8788` or `DSH_MEMORY_SERVER_URL` | memoryd base URL |
+| `token` / `tokenFile` | none / `~/.config/dsh-memory/token` (`DSH_MEMORY_TOKEN_FILE`) | bearer token source |
 | `defaultProject` | `default` | fallback project id |
 | `projectMap` | `{}` | directory prefix 鈫?project id; longest prefix wins |
 | `indexMaxItems` | `6` | rows injected into the prompt |
@@ -66,6 +92,7 @@ Project resolution order: longest `projectMap` prefix 鈫?enclosing git reposito
 | `memory_projects` | list, create or rename projects and set their aliases |
 | `memory_forget` | delete one memory by id |
 | `memory_consolidate` | check the daily window; returns a digest and a `consolidationId` |
+| `memory_setup` | print the deploy/configure steps for this machine and the current connection state |
 
 `memory_consolidate` never writes memory itself: it claims the window, returns the digest, and the model must submit results with `memory_save({ notes, consolidationId })`. If the model abandons the task, the watermark does not move and the next window retries; `claim` keeps the same day from retrying repeatedly.
 
@@ -74,7 +101,8 @@ Project resolution order: longest `projectMap` prefix 鈫?enclosing git reposito
 - Service down at startup: activation succeeds, the prompt section is empty, tools fail with an explicit error, conversation continues.
 - Service down later: the last good index is kept and marked stale rather than emptied.
 - Unknown transcript format or oversized file: skipped with a logged warning; other sessions still consolidate.
-- Missing token: one warning at activation, tools report `no-token`.
+- Missing token: tools report `no-token`; the activation warning appears only when `token`, `tokenFile` and `DSH_MEMORY_TOKEN` are all empty.
+- Service never reached: the prompt index says so in one line and every tool failure ends with a pointer to `memory_setup`.
 
 ## Settings page
 
@@ -103,7 +131,7 @@ Node 22.15+ / 24 (the transcript reader uses `zlib.zstdDecompressSync`). No npm 
 ## Verify
 
 ```bash
-node --test --experimental-test-isolation=none "tests/*.test.js"   # 98 tests
+node --test --experimental-test-isolation=none "tests/*.test.js"   # 125 tests
 ```
 
 ## License

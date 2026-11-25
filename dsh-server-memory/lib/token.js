@@ -6,6 +6,10 @@
  * disk during activation) and a successful read is cached briefly so every tool
  * call does not hit the filesystem.
  *
+ * The returned function carries `invalidate()`: a 401 means the cached value is
+ * wrong, so the client drops it and retries once. Rotating the token file then
+ * takes effect on the next call instead of after the cache TTL.
+ *
  * @module dsh-memory/token
  */
 
@@ -16,7 +20,7 @@ const CACHE_TTL_MS = 60_000
 /**
  * @param {import('./config.js').MemorySettings} settings
  * @param {{readFileImpl?: (path: string) => Promise<string>, env?: NodeJS.ProcessEnv, now?: () => number}} [options]
- * @returns {() => Promise<string>}
+ * @returns {(() => Promise<string>) & {invalidate: () => void}}
  */
 export function createTokenProvider(settings, options = {}) {
   const readFileImpl = options.readFileImpl ?? readFile
@@ -24,7 +28,7 @@ export function createTokenProvider(settings, options = {}) {
   const now = options.now ?? (() => Date.now())
   let cached = { value: '', at: 0 }
 
-  return async function resolveToken() {
+  async function resolveToken() {
     if (settings.token !== '') return settings.token
 
     if (settings.tokenFile !== '') {
@@ -44,4 +48,9 @@ export function createTokenProvider(settings, options = {}) {
     const fromEnv = typeof env.DSH_MEMORY_TOKEN === 'string' ? env.DSH_MEMORY_TOKEN.trim() : ''
     return fromEnv
   }
+
+  resolveToken.invalidate = () => {
+    cached = { value: '', at: 0 }
+  }
+  return resolveToken
 }

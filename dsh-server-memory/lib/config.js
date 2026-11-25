@@ -6,6 +6,9 @@
  * during activation. `normalizeConfig` therefore never validates by rejecting;
  * it clamps, expands paths, and reports problems for the caller to log.
  *
+ * The row config wins; `DSH_MEMORY_SERVER_URL` and `DSH_MEMORY_TOKEN_FILE` are
+ * the fallbacks an install can use without editing any YAML.
+ *
  * @module dsh-memory/config
  */
 
@@ -39,13 +42,24 @@ import { join, normalize as normalizePath } from 'node:path'
  */
 
 const DEFAULT_SERVER_URL = 'http://127.0.0.1:8788'
+const DEFAULT_TOKEN_FILE = '~/.config/dsh-memory/token'
 const DEFAULT_SESSIONS_ROOT = '~/.dsh/sessions'
+
+/**
+ * Environment fallbacks, used only when the row config leaves the field empty.
+ * They exist so an install that ships without a `config` block can still be
+ * pointed at a LAN or cloud memoryd without editing the plugin's patch:
+ * `DSH_MEMORY_SERVER_URL=http://192.168.5.5:8788`,
+ * `DSH_MEMORY_TOKEN_FILE=~/.config/dsh-memory/token`.
+ */
+export const ENV_SERVER_URL = 'DSH_MEMORY_SERVER_URL'
+export const ENV_TOKEN_FILE = 'DSH_MEMORY_TOKEN_FILE'
 
 /** @type {Readonly<Record<string, unknown>>} */
 export const DEFAULTS = Object.freeze({
   serverUrl: DEFAULT_SERVER_URL,
   token: '',
-  tokenFile: '',
+  tokenFile: DEFAULT_TOKEN_FILE,
   defaultProject: 'default',
   projectMap: {},
   requestTimeoutMs: 8000,
@@ -107,21 +121,38 @@ export function sanitizeProjectName(value, fallback = 'default') {
 }
 
 /** Strip trailing slashes so URL joins stay predictable. */
-function normalizeServerUrl(value, problems) {
+function normalizeServerUrl(value, problems, fallback = DEFAULT_SERVER_URL) {
   const text = typeof value === 'string' ? value.trim() : ''
-  if (text === '') return DEFAULT_SERVER_URL
+  if (text === '') return fallback
   let parsed
   try {
     parsed = new URL(text)
   } catch {
-    problems.push(`serverUrl is not a valid URL (${text}); falling back to ${DEFAULT_SERVER_URL}`)
-    return DEFAULT_SERVER_URL
+    problems.push(`serverUrl is not a valid URL (${text}); falling back to ${fallback}`)
+    return fallback
   }
   if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
-    problems.push(`serverUrl must be http or https (${text}); falling back to ${DEFAULT_SERVER_URL}`)
-    return DEFAULT_SERVER_URL
+    problems.push(`serverUrl must be http or https (${text}); falling back to ${fallback}`)
+    return fallback
   }
   return `${parsed.origin}${parsed.pathname.replace(/\/+$/, '')}`
+}
+
+/** Read an environment fallback into a trimmed string, ignoring blank values. */
+function envValue(env, key) {
+  if (env === null || env === undefined) return ''
+  const raw = env[key]
+  return typeof raw === 'string' ? raw.trim() : ''
+}
+
+/**
+ * Environment fallback for the service URL. An invalid value is reported and
+ * ignored so a typo cannot silently redirect every request.
+ */
+function envServerUrl(env, problems) {
+  const text = envValue(env, ENV_SERVER_URL)
+  if (text === '') return ''
+  return normalizeServerUrl(text, problems, '')
 }
 
 /** Normalise the `projectMap` object: expanded absolute paths, safe project ids. */
@@ -150,18 +181,31 @@ function normalizeProjectMap(value, problems) {
  * Normalise the plugin row config.
  *
  * @param {unknown} raw Config object from `cordis.patch.yml`.
- * @param {{home?: string}} [options] Test seam for `~` expansion.
+ * @param {{home?: string, env?: NodeJS.ProcessEnv}} [options] Test seams for `~` expansion and environment fallbacks.
  * @returns {MemorySettings}
  */
 export function normalizeConfig(raw, options = {}) {
   const home = options.home ?? homedir()
+  const env = options.env ?? process.env
   const source = raw !== null && typeof raw === 'object' && !Array.isArray(raw) ? raw : {}
   const problems = []
 
+  // Precedence: row config, then environment fallback, then the documented
+  // default. `serverUrl: ''` deliberately means "local default" as before.
+  const configuredUrl = typeof source.serverUrl === 'string' ? source.serverUrl.trim() : ''
+  const configuredTokenFile =
+    source.tokenFile === undefined ? undefined : typeof source.tokenFile === 'string' ? source.tokenFile.trim() : ''
+
   const settings = {
-    serverUrl: normalizeServerUrl(source.serverUrl, problems),
+    serverUrl:
+      configuredUrl === ''
+        ? envServerUrl(env, problems) || DEFAULT_SERVER_URL
+        : normalizeServerUrl(configuredUrl, problems),
     token: typeof source.token === 'string' ? source.token.trim() : '',
-    tokenFile: expandHome(source.tokenFile, home),
+    tokenFile: expandHome(
+      configuredTokenFile ?? (envValue(env, ENV_TOKEN_FILE) || DEFAULTS.tokenFile),
+      home,
+    ),
     defaultProject: sanitizeProjectName(source.defaultProject ?? DEFAULTS.defaultProject),
     projectMap: normalizeProjectMap(source.projectMap, problems),
     requestTimeoutMs: clampInt(source.requestTimeoutMs, DEFAULTS.requestTimeoutMs, 500, 120_000),
@@ -200,7 +244,7 @@ export function normalizeConfig(raw, options = {}) {
   }
 
   if (settings.token === '' && settings.tokenFile === '') {
-    const envToken = typeof process.env.DSH_MEMORY_TOKEN === 'string' ? process.env.DSH_MEMORY_TOKEN.trim() : ''
+    const envToken = envValue(env, 'DSH_MEMORY_TOKEN')
     if (envToken === '') {
       problems.push(
         'no token configured: set `token`, `tokenFile`, or DSH_MEMORY_TOKEN; memory tools will fail until then',

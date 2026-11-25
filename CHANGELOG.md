@@ -4,6 +4,26 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project uses
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.0] - 2026-11-25
+
+The plugin can now tell you how to stand up its own server.
+
+### Added
+
+- **Bundled server**: `dsh-server-memory/server/memoryd.py` ships inside the package (byte-identical to
+  the repo's `server/memoryd.py`, guarded by a test), so a marketplace install can run the service
+  without cloning the repository.
+- **`memory_setup` guidance**: one text rendered by the tool, by the settings page's help block and by the
+  tool error hint, with the commands for the bundled copy or for a git clone. It is guidance only —
+  nothing here runs a command.
+
+### Changed
+
+- `cordis.patch.yml` no longer pins `serverUrl`/`tokenFile` defaults: an install is configured through
+  the `DSH_MEMORY_*` environment variables or the settings page, instead of a row value that would pin
+  every user of the package to one host.
+- Plugin tests: 106 → 125 (setup text, bundled-server presence, config fallbacks).
+
 ## [0.6.2] - 2026-11-19
 
 The package directory is now the product name.

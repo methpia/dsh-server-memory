@@ -63,8 +63,10 @@ function latestUpdate(items) {
 /**
  * Build the `dsh-memory:index` prompt section.
  *
- * Returns `''` when there is nothing to say: a missing cache, an unreachable
- * service, or an empty project must all produce zero prompt noise.
+ * Returns `''` when there is nothing to say: a missing cache or an empty project
+ * must produce zero prompt noise. The one exception is a *failure* snapshot: an
+ * install that has never reached its service says so in a single line, because
+ * otherwise a first run looks identical to "this plugin does nothing".
  *
  * @param {{project: string, snapshot?: ContextSnapshot, settings: MemorySettings}} input
  * @returns {string}
@@ -75,9 +77,17 @@ export function renderIndex(input) {
   const due = snapshot?.consolidation?.due === true && settings.consolidationEnabled
   const total = Number.isFinite(snapshot?.total) ? snapshot.total : items.length
 
-  if (items.length === 0 && !due) return ''
-
   const maxChars = settings.indexMaxChars
+  if (items.length === 0 && !due) {
+    const failure = typeof snapshot?.error === 'string' ? snapshot.error.trim() : ''
+    if (failure === '') return ''
+    const text = `${SECTION_TITLE}（${project}）\n- 记忆服务未连接：${toSingleLine(
+      failure,
+      90,
+    )}；调用 memory_setup 查看部署与配置步骤。`
+    return text.length <= maxChars ? text : `${text.slice(0, Math.max(0, maxChars - 1))}…`
+  }
+
   const lines = [`${SECTION_TITLE}（${project}）`]
 
   const update = latestUpdate(items)

@@ -11,6 +11,7 @@
 
 import { describeMemoryError, MemoryError } from './client.js'
 import { normalizeConfig } from './config.js'
+import { deploymentText, DOCS_URL } from './setup.js'
 
 export const ADMIN_ROUTE = '/api/dsh-server-memory'
 
@@ -44,6 +45,19 @@ class HttpError extends Error {
     this.status = status
     this.code = code
   }
+}
+
+/**
+ * Turn a failed connection test into a sentence the settings page can show.
+ * A reachable service plus a rejected token is the one case worth spelling out:
+ * every tool fails with it, and it is not a networking problem.
+ */
+function describeHealthFailure(error) {
+  const described = describeMemoryError(error)
+  if (error instanceof MemoryError && (error.code === 'no-token' || error.status === 401)) {
+    return `${described} — 服务地址可达，但 token 缺失或无效；请填写 token 或 tokenFile 后重试。`
+  }
+  return described
 }
 
 function json(status, body) {
@@ -161,11 +175,46 @@ export function createAdminRoute(options) {
 
         if (body.action === 'health') {
           try {
-            const health = await client.health()
-            return json(200, { ok: true, health })
+            // `/health` is public, so it alone would report "connected" for a
+            // missing or wrong token. Pair it with an authenticated read so the
+            // page fails the same way the tools would.
+            const [health, projects] = await Promise.all([client.health(), client.listProjects()])
+            return json(200, { ok: true, health, projects: projects.projects ?? [] })
           } catch (error) {
-            return json(200, { ok: false, error: describeMemoryError(error) })
+            return json(200, { ok: false, error: describeHealthFailure(error) })
           }
+        }
+
+        if (body.action === 'setup') {
+          // Same text the memory_setup tool returns, so the page and the agent
+          // cannot disagree about how to deploy the service.
+          let reachable = null
+          let tokenRejected = false
+          try {
+            await client.health()
+            reachable = true
+          } catch {
+            reachable = false
+          }
+          if (reachable === true) {
+            try {
+              await client.listProjects()
+            } catch (error) {
+              tokenRejected =
+                error instanceof MemoryError &&
+                (error.status === 401 || error.code === 'unauthorized' || error.code === 'no-token')
+            }
+          }
+          return json(200, {
+            ok: true,
+            docsUrl: DOCS_URL,
+            setup: deploymentText({
+              serverUrl: settings.serverUrl,
+              hasToken: settings.token !== '' || settings.tokenFile !== '',
+              reachable,
+              tokenRejected,
+            }),
+          })
         }
 
         if (body.action === 'projects') {

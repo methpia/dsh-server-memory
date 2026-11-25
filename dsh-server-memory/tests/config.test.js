@@ -14,7 +14,7 @@ import {
 const comparable = (value) => normalizePath(value).replace(/\\/g, '/')
 
 test('empty config yields documented defaults', () => {
-  const settings = normalizeConfig(undefined)
+  const settings = normalizeConfig(undefined, { env: {} })
   assert.equal(settings.serverUrl, DEFAULTS.serverUrl)
   assert.equal(settings.defaultProject, 'default')
   assert.equal(settings.indexMaxItems, 6)
@@ -22,6 +22,10 @@ test('empty config yields documented defaults', () => {
   assert.equal(settings.digestMaxChars, 8000)
   assert.equal(settings.consolidationEnabled, true)
   assert.deepEqual(settings.projectMap, {})
+  // The token file has a real default so an install that ships no config block
+  // still finds the documented path instead of reporting "no token".
+  assert.equal(comparable(settings.tokenFile), comparable(expandHome(DEFAULTS.tokenFile)))
+  assert.deepEqual(settings.problems, [])
 })
 
 test('invalid server URLs fall back and report a problem', () => {
@@ -68,9 +72,43 @@ test('tokenFile expands a leading tilde', () => {
   assert.equal(comparable(settings.tokenFile), comparable(join('/home/scott', 'secret/token')))
 })
 
-test('a missing token is reported once', () => {
-  const settings = normalizeConfig({})
+test('a missing token is reported once when the token file is disabled', () => {
+  const settings = normalizeConfig({ tokenFile: '' }, { env: {} })
   assert.equal(settings.problems.filter((problem) => problem.includes('token')).length, 1)
+})
+
+test('environment fallbacks point an untouched install at another host', () => {
+  const settings = normalizeConfig(undefined, {
+    home: '/home/scott',
+    env: {
+      DSH_MEMORY_SERVER_URL: 'http://192.168.5.5:8788/',
+      DSH_MEMORY_TOKEN_FILE: '~/secret/token',
+    },
+  })
+  assert.equal(settings.serverUrl, 'http://192.168.5.5:8788')
+  assert.equal(comparable(settings.tokenFile), comparable(join('/home/scott', 'secret/token')))
+  assert.deepEqual(settings.problems, [])
+})
+
+test('row config wins over the environment fallback', () => {
+  const settings = normalizeConfig(
+    { serverUrl: 'https://memory.example.com', tokenFile: '~/a/token' },
+    {
+      home: '/home/scott',
+      env: {
+        DSH_MEMORY_SERVER_URL: 'http://192.168.5.5:8788',
+        DSH_MEMORY_TOKEN_FILE: '~/b/token',
+      },
+    },
+  )
+  assert.equal(settings.serverUrl, 'https://memory.example.com')
+  assert.equal(comparable(settings.tokenFile), comparable(join('/home/scott', 'a/token')))
+})
+
+test('an invalid environment URL is reported and ignored', () => {
+  const settings = normalizeConfig(undefined, { env: { DSH_MEMORY_SERVER_URL: '192.168.5.5:8788' } })
+  assert.equal(settings.serverUrl, DEFAULTS.serverUrl)
+  assert.ok(settings.problems.some((problem) => problem.includes('serverUrl')))
 })
 
 test('projectMap keeps valid entries and reports invalid ones', () => {
