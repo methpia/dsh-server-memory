@@ -52,8 +52,13 @@ export async function runSessionStart(payload, options = {}) {
 
   let cwdProject
   if (available) {
-    const match = await resolveFromText(client, cwd)
-    if (match !== undefined) cwdProject = match.project
+    const pinnedProject = sessionId === undefined ? undefined : settings.sessionProjects?.[sessionId]
+    if (pinnedProject !== undefined) {
+      cwdProject = pinnedProject
+    } else {
+      const match = await resolveFromText(client, cwd)
+      if (match !== undefined) cwdProject = match.project
+    }
     remember(state, { sessionId, cwd, transcriptPath, project: cwdProject })
     await saveState(settings.stateFile, state).catch((error) => debugLog(String(error)))
   }

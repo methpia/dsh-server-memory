@@ -4,6 +4,27 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project uses
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.1] - 2026-11-25
+
+Long-lived WorkBuddy sessions can be consolidated.
+
+### Fixed
+
+- **Oversized transcripts are read from the tail** instead of being skipped. WorkBuddy users keep one
+  conversation for months, so a single JSONL can reach hundreds of megabytes (the reference session is
+  367 MB); the 8 MiB guard used to throw, leaving consolidation with nothing to summarize. The reader now
+  takes the last `transcriptMaxBytes` and drops the partial first line.
+- WorkBuddy hooks read their configuration from `~/.config/dsh-memory/workbuddy.json`; an install without
+  that file silently pointed at `http://127.0.0.1:8788` and every hook failed. Documented in
+  `docs/WORKBUDDY.md` with the exact file.
+
+### Added
+
+- **`sessionProjects`** in the WorkBuddy config: pin a long conversation to a project so it no longer has
+  to name the project in every prompt. Both hooks consult the pin before resolving text, and the pin is
+  recorded in the adapter state so consolidation can attribute the session.
+- Adapter tests: 19 → 21 (tail read, pinned session).
+
 ## [0.7.0] - 2026-11-25
 
 The plugin can now tell you how to stand up its own server.

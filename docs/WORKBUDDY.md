@@ -85,6 +85,28 @@ WorkBuddy 的转录是每个会话一个 JSONL（`~/.workbuddy/projects/<cwd>/<s
 
 - `UserPromptSubmit` 钩子识别到项目后，如果 `/api/context` 显示聚合到期，会在注入文本末尾加一行：
   「记忆聚合已到期：说“整理记忆”或调用 memory_consolidate…」，每个会话只提示一次；
+## 配置与长会话
+
+hook 与 MCP server 是两类进程：MCP server 的地址来自 `~/.workbuddy/mcp.json` 的 `env`，而 **hook
+不继承那份 env**。所以 hook 只读这一个文件（不存在时回退到 `127.0.0.1:8788`，会静默失败）：
+
+```json
+// ~/.config/dsh-memory/workbuddy.json
+{
+  "serverUrl": "http://192.168.5.5:8788",
+  "tokenFile": "~/.config/dsh-memory/token",
+  "sessionProjects": {
+    "4399a0d0-9aa9-4f71-9936-58e031cb21e0": "cheyidao"
+  }
+}
+```
+
+- `sessionProjects` 把一个会话**固定**到某个项目：长会话不必每轮都提项目名/别名，hook 会先查这张表，
+  再把结果写进适配器状态，聚合时据此归属。
+- 项目归属仍然可以来自 prompt 文本（别名表）或 cwd 路径；标题不参与识别。
+- WorkBuddy 的长会话转录会涨到几百 MB，读取器**只读文件尾部**（上限 `transcriptMaxBytes`，默认 8 MiB），
+  逐行解析并丢弃被截断的首行，因此老会话的最新流水也能进聚合。
+
 - 是否提示由配置 `dailyConsolidationHint`（默认 `true`）控制；
 - 真正的占位由服务端 `claim` 保证一天一次，两个客户端（DSH / WorkBuddy）共享同一个窗口。
 

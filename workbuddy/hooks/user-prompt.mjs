@@ -48,7 +48,11 @@ export async function runUserPrompt(payload, options = {}) {
 
   const state = await loadState(settings.stateFile)
   const session = sessionId ? state.sessions[sessionId] : undefined
-  const match = await resolveFromText(client, prompt)
+  const pinnedProject = sessionId === undefined ? undefined : settings.sessionProjects?.[sessionId]
+  const match =
+    pinnedProject === undefined
+      ? await resolveFromText(client, prompt)
+      : { project: pinnedProject, label: pinnedProject, matched: '会话绑定' }
 
   if (match !== undefined) {
     remember(state, { sessionId, cwd, transcriptPath, project: match.project })

@@ -18,6 +18,7 @@ import { loadState, projectForCwd, pruneState, recentProject, remember } from '.
 import {
   collectDigestForProject,
   extractEntries,
+  readTranscript,
   stripSystemReminders,
 } from '../lib/transcripts.mjs'
 import { runUserPrompt } from '../hooks/user-prompt.mjs'
@@ -544,6 +545,53 @@ test('the daily consolidation hint is injected once per session', async () => {
 
     const second = await runUserPrompt({ ...payload, prompt: '继续' }, { settings: adapterSettings, client })
     assert.equal(second, undefined)
+  } finally {
+    await cleanup(directory)
+  }
+})
+
+test('readTranscript reads the tail of an oversized transcript', async () => {
+  const { directory, file } = await tempStateFile()
+  try {
+    const lines = []
+    for (let i = 0; i < 200; i += 1) {
+      lines.push(JSON.stringify({
+        type: 'message',
+        role: 'user',
+        timestamp: 1795000000000 + i,
+        content: [{ type: 'input_text', text: `line ${i}` }],
+      }))
+    }
+    await writeFile(file, `${lines.join('\n')}\n`, 'utf8')
+
+    const full = await readTranscript(file, { maxBytes: 10 * 1024 * 1024 })
+    assert.equal(full.events.length, 200)
+    assert.equal(full.truncated, false)
+
+    const tail = await readTranscript(file, { maxBytes: 2048 })
+    assert.equal(tail.truncated, true)
+    assert.ok(tail.events.length > 0, 'tail should still parse events')
+    assert.ok(tail.events.length < 200, 'tail must not return the whole file')
+    assert.equal(tail.events.at(-1).timestamp, 1795000000199)
+  } finally {
+    await cleanup(directory)
+  }
+})
+
+test('a pinned session resolves without naming the project', async () => {
+  const { directory, file } = await tempStateFile()
+  try {
+    const client = fakeClient()
+    const pinned = settings({ stateFile: file })
+    pinned.sessionProjects = { 'sess-pinned': 'cheyidao' }
+    const output = await runUserPrompt(
+      { session_id: 'sess-pinned', cwd: 'D:\\项目成果\\2026-11-24-10-00-00', prompt: '继续改那段代码' },
+      { settings: pinned, client },
+    )
+    assert.ok(output !== undefined, 'a pinned session should inject context')
+    const call = client.calls.find((entry) => entry.name === 'getContext')
+    assert.equal(call.args[0], 'cheyidao')
+    assert.equal(client.calls.some((entry) => entry.name === 'resolve'), false)
   } finally {
     await cleanup(directory)
   }

@@ -69,13 +69,33 @@ export async function readTranscript(file, options = {}) {
   const readFileImpl = options.readFileImpl ?? readFile
   const maxBytes = options.maxBytes ?? MAX_DEFAULT_BYTES
   const info = await statImpl(file)
+  // Long-lived WorkBuddy sessions grow without bound (hundreds of MB). Reading
+  // the tail keeps the newest window instead of skipping the file entirely.
+  let raw
+  let truncated = false
   if (info.size > maxBytes) {
-    throw new Error(`转录文件过大（${info.size} 字节，上限 ${maxBytes}）`)
+    truncated = true
+    const { open } = await import('node:fs/promises')
+    const handle = await open(file, 'r')
+    try {
+      const start = info.size - maxBytes
+      const buffer = Buffer.alloc(maxBytes)
+      const { bytesRead } = await handle.read(buffer, 0, maxBytes, start)
+      raw = buffer.subarray(0, bytesRead)
+    } finally {
+      await handle.close()
+    }
+  } else {
+    raw = await readFileImpl(file)
   }
-  const raw = await readFileImpl(file)
+  let text = raw.toString('utf8')
+  if (truncated) {
+    const firstNewline = text.indexOf('\n')
+    text = firstNewline === -1 ? '' : text.slice(firstNewline + 1)
+  }
   const events = []
   let badLines = 0
-  for (const line of raw.toString('utf8').split('\n')) {
+  for (const line of text.split('\n')) {
     const trimmed = line.trim()
     if (trimmed === '') continue
     try {
@@ -84,7 +104,7 @@ export async function readTranscript(file, options = {}) {
       badLines += 1
     }
   }
-  return { events, badLines, bytes: info.size }
+  return { events, badLines, bytes: info.size, truncated }
 }
 
 /** Session metadata from the transcript itself. */

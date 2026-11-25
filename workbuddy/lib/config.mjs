@@ -25,6 +25,17 @@ import { join } from 'node:path'
 
 import { expandHome, normalizeConfig } from '../../dsh-server-memory/lib/config.js'
 
+/** session id -> project id, for long conversations whose text stops naming the project. */
+export function normalizeSessionProjects(value) {
+  if (value === null || typeof value !== 'object' || Array.isArray(value)) return {}
+  const out = {}
+  for (const [sessionId, project] of Object.entries(value)) {
+    if (typeof sessionId !== 'string' || sessionId.trim() === '') continue
+    if (typeof project === 'string' && project.trim() !== '') out[sessionId.trim()] = project.trim()
+  }
+  return out
+}
+
 export const CONFIG_DIR = join(homedir(), '.config', 'dsh-memory')
 export const DEFAULT_CONFIG_PATH = join(CONFIG_DIR, 'workbuddy.json')
 export const DEFAULT_STATE_PATH = join(CONFIG_DIR, 'workbuddy-state.json')
@@ -65,6 +76,7 @@ export async function loadWorkbuddyConfig(env = process.env) {
     projectsRoot: expandHome(stored.projectsRoot || '~/.workbuddy/projects'),
     dailyConsolidationHint:
       typeof stored.dailyConsolidationHint === 'boolean' ? stored.dailyConsolidationHint : true,
+    sessionProjects: normalizeSessionProjects(stored.sessionProjects),
   }
 }
 
