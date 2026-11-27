@@ -57,6 +57,26 @@ export async function runUserPrompt(payload, options = {}) {
   if (match !== undefined) {
     remember(state, { sessionId, cwd, transcriptPath, project: match.project })
     if (session?.injected === match.project) {
+      // The index is already in context, but the consolidation hint would never
+      // get a second chance: a month-long conversation injected once would stay
+      // silent forever, even after the window became due.
+      if (session?.hintedConsolidation !== true && settings.dailyConsolidationHint !== false) {
+        let due = false
+        try {
+          const probe = await client.getContext(match.project, { limit: 1, maxChars: 200 })
+          due = probe?.consolidation?.due === true
+        } catch (error) {
+          debugLog(`due check failed: ${error instanceof Error ? error.message : String(error)}`)
+        }
+        if (due) {
+          remember(state, { sessionId, cwd, transcriptPath, hintedConsolidation: true })
+          await saveState(settings.stateFile, state).catch((error) => debugLog(String(error)))
+          return hookOutput(
+            'UserPromptSubmit',
+            `记忆聚合已到期：说“整理记忆”或调用 memory_consolidate（project: ${match.project}）即可把本项目近期流水整理成记忆。`,
+          )
+        }
+      }
       await saveState(settings.stateFile, state).catch((error) => debugLog(String(error)))
       return undefined
     }

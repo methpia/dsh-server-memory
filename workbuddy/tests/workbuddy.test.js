@@ -582,7 +582,8 @@ test('a pinned session resolves without naming the project', async () => {
   const { directory, file } = await tempStateFile()
   try {
     const client = fakeClient()
-    const pinned = settings({ stateFile: file })
+    const pinned = settings()
+    pinned.stateFile = file
     pinned.sessionProjects = { 'sess-pinned': 'cheyidao' }
     const output = await runUserPrompt(
       { session_id: 'sess-pinned', cwd: 'D:\\项目成果\\2026-11-24-10-00-00', prompt: '继续改那段代码' },
@@ -592,6 +593,40 @@ test('a pinned session resolves without naming the project', async () => {
     const call = client.calls.find((entry) => entry.name === 'getContext')
     assert.equal(call.args[0], 'cheyidao')
     assert.equal(client.calls.some((entry) => entry.name === 'resolve'), false)
+  } finally {
+    await cleanup(directory)
+  }
+})
+
+test('hints consolidation on a later prompt when the index was already injected', async () => {
+  const { directory, file } = await tempStateFile()
+  try {
+    let due = false
+    const client = fakeClient({
+      getContext: (project) => ({
+        project,
+        items: [{ id: 1, kind: 'note', text: '[决策] x', created_at: '2026-11-13T01:20:00Z' }],
+        total: 1,
+        watermark: {},
+        consolidation: { due },
+      }),
+    })
+    const pinnedSettings = settings()
+    pinnedSettings.stateFile = file
+    pinnedSettings.sessionProjects = { 'sess-late': 'cheyidao' }
+
+    const payload = { session_id: 'sess-late', cwd: 'D:\\\\projects\\\\x', prompt: '改一下那段代码' }
+    const first = await runUserPrompt(payload, { settings: pinnedSettings, client })
+    assert.ok(first !== undefined, 'first prompt injects the index')
+    assert.equal(JSON.stringify(first).includes('记忆聚合已到期'), false, 'not due yet')
+
+    due = true
+    const second = await runUserPrompt(payload, { settings: pinnedSettings, client })
+    assert.ok(second !== undefined, 'the later prompt still gets the due hint')
+    assert.equal(JSON.stringify(second).includes('记忆聚合已到期'), true)
+
+    const third = await runUserPrompt(payload, { settings: pinnedSettings, client })
+    assert.equal(third, undefined, 'the hint is once per session')
   } finally {
     await cleanup(directory)
   }

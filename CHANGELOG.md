@@ -4,6 +4,22 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project uses
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.2] - 2026-11-27
+
+The daily consolidation hint reaches long conversations.
+
+### Fixed
+
+- `UserPromptSubmit` checked the consolidation window only on the prompt that first injected the
+  project index. A conversation that had been open for weeks injected once and then returned early on
+  every later prompt, so the hint could never appear — even after the 24-hour window became due. The
+  hook now probes `consolidation.due` on later prompts and emits the hint once per session
+  (`hintedConsolidation` still caps it at one).
+
+### Changed
+
+- Adapter tests: 21 → 22 (a second prompt on an already-injected session gets the hint, a third does not).
+
 ## [0.7.1] - 2026-11-25
 
 Long-lived WorkBuddy sessions can be consolidated.
